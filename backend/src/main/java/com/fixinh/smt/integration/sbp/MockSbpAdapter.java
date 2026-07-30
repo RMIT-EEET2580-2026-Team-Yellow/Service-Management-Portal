@@ -1,3 +1,5 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/integration/sbp/MockSbpAdapter.java
+// CHANGE: getCustomer/getRatingForBooking params Long -> String, matching SbpIntegrationPort.
 package com.fixinh.smt.integration.sbp;
 
 import com.fixinh.smt.integration.sbp.dto.SbpCustomerDto;
@@ -13,12 +15,12 @@ import java.util.Optional;
 public class MockSbpAdapter implements SbpIntegrationPort {
 
     @Override
-    public Optional<SbpCustomerDto> getCustomer(Long customerId) {
+    public Optional<SbpCustomerDto> getCustomer(String customerId) {
         return Optional.of(new SbpCustomerDto(customerId, "Mock Customer", "0900000000"));
     }
 
     @Override
-    public Optional<SbpRatingDto> getRatingForBooking(Long bookingId) {
+    public Optional<SbpRatingDto> getRatingForBooking(String bookingId) {
         return Optional.of(new SbpRatingDto(bookingId, 5, 5, 5, 5, "Great service!", List.of()));
     }
 

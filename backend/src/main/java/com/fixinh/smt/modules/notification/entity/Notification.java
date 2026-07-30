@@ -1,3 +1,5 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/modules/notification/entity/Notification.java
+// CHANGE: id now explicitly generated as a UUID string.
 package com.fixinh.smt.modules.notification.entity;
 
 import lombok.AllArgsConstructor;
@@ -10,6 +12,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Document(collection = "notifications")
 @Getter
@@ -20,7 +23,8 @@ import java.time.LocalDateTime;
 public class Notification {
 
     @Id
-    private String id;
+    @Builder.Default
+    private String id = UUID.randomUUID().toString();
 
     private String recipientStaffId;
     private String bookingId;

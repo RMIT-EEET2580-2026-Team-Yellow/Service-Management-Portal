@@ -1,3 +1,7 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/modules/technician/entity/Technician.java
+// CHANGE: schedule fields (workingDays/dailyStart/dailyEnd/currentlyAvailable) moved out to the
+// new TechnicianAvailability entity (see TechnicianAvailability.java) — this class now only
+// holds the link to the Staff account. UUID default added for the id.
 package com.fixinh.smt.modules.technician.entity;
 
 import lombok.AllArgsConstructor;
@@ -8,12 +12,12 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalTime;
-import java.util.List;
+import java.util.UUID;
 
 /**
- * Extends a {@code Staff} account (by {@code staffId}) with scheduling data required to
- * auto-assign work (3.1.M5, 3.2.M5, 3.3.M3).
+ * Extends a {@code Staff} account (by {@code staffId}) so it can be auto-assigned work
+ * (3.1.M5, 3.2.M5, 3.3.M3). Scheduling data now lives in {@link TechnicianAvailability}
+ * (technicianId -> availability), not embedded here.
  */
 @Document(collection = "technicians")
 @Getter
@@ -24,15 +28,8 @@ import java.util.List;
 public class Technician {
 
     @Id
-    private String id;
+    @Builder.Default
+    private String id = UUID.randomUUID().toString();
 
     private String staffId;
-
-    /** 5 consecutive working days, e.g. ["MON","TUE","WED","THU","FRI"]. */
-    private List<String> workingDays;
-
-    private LocalTime dailyStart; // >= 08:00
-    private LocalTime dailyEnd;   // <= 20:00
-
-    private boolean currentlyAvailable;
 }

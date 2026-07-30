@@ -1,3 +1,8 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/modules/booking/service/BookingServiceImpl.java
+// FIX (this round): removed the direct TechnicianAssignmentRepository dependency — that broke
+// A.2.4 (a module may only depend on another module's External Service, never its Repository).
+// Booking now goes through TechnicianExternalService.createAssignments(...) and
+// .areAllAssignmentsAccepted(...) instead.
 package com.fixinh.smt.modules.booking.service;
 
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
@@ -15,8 +20,9 @@ import java.util.Optional;
 
 /**
  * Implements both interfaces (A.3.1/A.3.2). Depends ONLY on other modules' External Interfaces
- * (A.2.4): {@link TechnicianExternalService} for auto-assignment (3.3.M3) and
- * {@link NotificationExternalService} for status-change alerts (3.3.U2, 4.M3).
+ * (A.2.4): {@link TechnicianExternalService} for auto-assignment AND for creating/checking
+ * TechnicianAssignment rows (3.3.M3–M5), and {@link NotificationExternalService} for
+ * status-change alerts (3.3.U2, 4.M3). No direct Repository access into another module.
  */
 @Service
 public class BookingServiceImpl implements BookingExternalService, BookingInternalService {
@@ -46,10 +52,11 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     }
 
     @Override
-    public BookingExternalDto createFromCustomer(Long customerId, String serviceType, String issueDescription,
+    public BookingExternalDto createFromCustomer(String customerId, String serviceType, String issueDescription,
                                                    String serviceAddress, LocalDate preferredDate,
                                                    java.time.LocalTime availableStart, java.time.LocalTime availableEnd) {
         // TODO Milestone 2: persist with status "Created" (3.3.S2, mirrors SBP-side booking creation).
+        // customerId is now a UUID string (was Long) per 30/7 agreement with SBT.
         throw new UnsupportedOperationException("Milestone 2");
     }
 
@@ -79,14 +86,22 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public BookingResponse confirm(String bookingId, ConfirmBookingRequest request) {
-        // TODO Milestone 2: set status "Confirmed" (3.3.S6), then notify via notificationExternalService (4.M3).
+        // TODO Milestone 2: set status "Confirmed" (3.3.S6), then notify SBP via SbpIntegrationPort
+        // with the enriched DTO (scheduledDateTime, estimatedDuration, technician names) per the
+        // 30/7 agreement — SBT enriches on their side, SMT just needs to send a fuller payload,
+        // no separate GET endpoint required. Also notify via notificationExternalService (4.M3).
         throw new UnsupportedOperationException("Milestone 2");
     }
 
     @Override
     public BookingResponse assignTechnicians(String bookingId, List<String> technicianIds) {
-        // TODO Milestone 2: call technicianExternalService.findAvailable(...) (3.3.M3), then set
-        // status "Scheduled" once all Technicians accept (3.3.M5) and notify (3.3.U2, 4.M3).
+        // TODO Milestone 2:
+        //   1. technicianExternalService.findAvailable(...) (3.3.M3) to pick candidates.
+        //   2. technicianExternalService.createAssignments(bookingId, technicianIds) — Booking
+        //      never touches TechnicianAssignmentRepository directly (A.2.4).
+        //   3. When technicianExternalService.areAllAssignmentsAccepted(bookingId) becomes true
+        //      (checked on a later call, e.g. after each accept webhook), set status "Scheduled"
+        //      (3.3.M5) and notify (3.3.U2, 4.M3) with technician full names in the payload.
         throw new UnsupportedOperationException("Milestone 2");
     }
 

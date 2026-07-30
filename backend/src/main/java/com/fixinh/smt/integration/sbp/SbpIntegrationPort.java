@@ -1,3 +1,9 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/integration/sbp/SbpIntegrationPort.java
+// CHANGES:
+//   - getCustomer(Long) -> getCustomer(String): customerId is now UUID, per 30/7 agreement.
+//   - getRatingForBooking(Long) -> getRatingForBooking(String): this was ALREADY inconsistent
+//     even before the UUID change — Booking.id has always been a String, so passing a Long
+//     bookingId here could never have matched a real booking. Fixed while touching this file.
 package com.fixinh.smt.integration.sbp;
 
 import com.fixinh.smt.integration.sbp.dto.SbpCustomerDto;
@@ -15,9 +21,9 @@ import java.util.Optional;
  */
 public interface SbpIntegrationPort {
 
-    Optional<SbpCustomerDto> getCustomer(Long customerId);
+    Optional<SbpCustomerDto> getCustomer(String customerId);
 
-    Optional<SbpRatingDto> getRatingForBooking(Long bookingId);
+    Optional<SbpRatingDto> getRatingForBooking(String bookingId);
 
     List<SbpRatingStatsDto> getServiceTypeRatingStats(String period);
 

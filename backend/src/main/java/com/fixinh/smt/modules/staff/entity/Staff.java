@@ -1,3 +1,6 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/modules/staff/entity/Staff.java
+// CHANGE: id now explicitly generated as a UUID string (was left to Mongo's default ObjectId).
+// email/active fields unchanged — already correct, confirmed 30/7.
 package com.fixinh.smt.modules.staff.entity;
 
 import lombok.AllArgsConstructor;
@@ -10,6 +13,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Maps to a Receptionist/Technician/Admin account. Horizontally sharded by branch province
@@ -25,7 +29,8 @@ import java.time.LocalDateTime;
 public class Staff {
 
     @Id
-    private String id;
+    @Builder.Default
+    private String id = UUID.randomUUID().toString();
 
     private String fullName;
 

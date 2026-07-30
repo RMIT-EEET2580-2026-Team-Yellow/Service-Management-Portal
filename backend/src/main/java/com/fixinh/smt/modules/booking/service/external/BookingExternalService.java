@@ -1,3 +1,5 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/modules/booking/service/external/BookingExternalService.java
+// CHANGE: createFromCustomer's customerId param Long -> String (UUID), per 30/7 agreement with SBT.
 package com.fixinh.smt.modules.booking.service.external;
 
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
@@ -16,8 +18,9 @@ public interface BookingExternalService {
 
     List<BookingExternalDto> findCompletedBetween(java.time.LocalDate from, java.time.LocalDate to);
 
-    /** Called by SBP to create a booking (mirrors SBP-side 3.3.S1/S2) — 4.S1. */
-    BookingExternalDto createFromCustomer(Long customerId, String serviceType, String issueDescription,
+    /** Called by SBP to create a booking (mirrors SBP-side 3.3.S1/S2) — 4.S1.
+     *  customerId is a UUID string (was Long) per the 30/7 agreement with SBT. */
+    BookingExternalDto createFromCustomer(String customerId, String serviceType, String issueDescription,
                                            String serviceAddress, java.time.LocalDate preferredDate,
                                            java.time.LocalTime availableStart, java.time.LocalTime availableEnd);
 }

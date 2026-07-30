@@ -1,3 +1,7 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/modules/technician/service/external/TechnicianExternalService.java
+// CHANGE: added createAssignments(...) and areAllAssignmentsAccepted(...) so Booking module can
+// create/check TechnicianAssignment rows WITHOUT touching TechnicianAssignmentRepository
+// directly (A.2.4 — modules may only depend on another module's External Service).
 package com.fixinh.smt.modules.technician.service.external;
 
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
@@ -14,4 +18,13 @@ public interface TechnicianExternalService {
     boolean acceptAssignment(String technicianId, String bookingId);
 
     boolean rejectAssignment(String technicianId, String bookingId);
+
+    /** Creates a PENDING TechnicianAssignment row for each technicianId against this booking
+     *  (3.3.M3). Called by BookingServiceImpl — Booking must never write to
+     *  TechnicianAssignmentRepository directly (A.2.4). */
+    void createAssignments(String bookingId, List<String> technicianIds);
+
+    /** True once every TechnicianAssignment for this booking has status ACCEPTED (3.3.M5) —
+     *  Booking uses this to decide when to flip status to "Scheduled". */
+    boolean areAllAssignmentsAccepted(String bookingId);
 }
