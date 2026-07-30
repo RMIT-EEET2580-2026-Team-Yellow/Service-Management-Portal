@@ -1,3 +1,5 @@
+// Path in repo: backend/src/main/java/com/fixinh/smt/integration/sbp/RealSbpClient.java
+// CHANGE: getCustomer/getRatingForBooking params Long -> String, matching SbpIntegrationPort.
 package com.fixinh.smt.integration.sbp;
 
 import com.fixinh.smt.integration.sbp.dto.SbpCustomerDto;
@@ -18,12 +20,12 @@ public class RealSbpClient implements SbpIntegrationPort {
     }
 
     @Override
-    public Optional<SbpCustomerDto> getCustomer(Long customerId) {
+    public Optional<SbpCustomerDto> getCustomer(String customerId) {
         throw new UnsupportedOperationException("Milestone 2");
     }
 
     @Override
-    public Optional<SbpRatingDto> getRatingForBooking(Long bookingId) {
+    public Optional<SbpRatingDto> getRatingForBooking(String bookingId) {
         throw new UnsupportedOperationException("Milestone 2");
     }
 
