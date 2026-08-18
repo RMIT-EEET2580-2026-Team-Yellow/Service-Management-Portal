@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
     --primary-font-family: "Google Sans Flex", sans-serif;
     --secondary-font-family: "Tektur", sans-serif;
@@ -24,4 +26,16 @@
     font-style: normal;
     font-variation-settings:
         "wdth" 100;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
