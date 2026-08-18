@@ -5,12 +5,9 @@ import Navbar from './components/reusable/NavBar';
 
 function App() {
   return (
-    <div>
-      <div>
-        <Navbar />
-        <AppRouter />
-      </div>
-    </div>
+    <>
+      
+    </>
   );
 }
 
