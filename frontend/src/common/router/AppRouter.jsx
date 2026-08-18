@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 
+import AppLayout from "../../components/reusable/AppLayout";
 import LoginPage from "../../features/auth/pages/LoginPage";
 import DashboardPage from "../../features/dashboard/pages/DashboardPage";
 import BookingListPage from "../../features/booking/pages/BookingListPage";
@@ -11,25 +12,31 @@ import StaffEditPage from "../../features/staff/pages/StaffEditPage";
 import TechnicianBookingPage from "../../features/technician/pages/TechnicianBookingPage";
 import StatisticsPage from "../../features/statistics/pages/StatisticsPage";
 import RatingDetailPage from "../../features/statistics/pages/RatingDetailPage";
+import NotificationPage from "../../features/notification/pages/NotificationPage";
 
 export default function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LoginPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
 
-      <Route path="/bookings" element={<BookingListPage />} />
-      <Route path="/bookings/create" element={<BookingCreatePage />} />
-      <Route path="/bookings/detail" element={<BookingDetailPage />} />
+      <Route element={<AppLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
 
-      <Route path="/staff" element={<StaffListPage />} />
-      <Route path="/staff/create" element={<StaffCreatePage />} />
-      <Route path="/staff/edit" element={<StaffEditPage />} />
+        <Route path="/bookings" element={<BookingListPage />} />
+        <Route path="/bookings/create" element={<BookingCreatePage />} />
+        <Route path="/bookings/detail" element={<BookingDetailPage />} />
 
-      <Route path="/technician" element={<TechnicianBookingPage />} />
+        <Route path="/staff" element={<StaffListPage />} />
+        <Route path="/staff/create" element={<StaffCreatePage />} />
+        <Route path="/staff/edit" element={<StaffEditPage />} />
 
-      <Route path="/statistics" element={<StatisticsPage />} />
-      <Route path="/statistics/rating/:bookingId" element={<RatingDetailPage />} />
+        <Route path="/technician" element={<TechnicianBookingPage />} />
+
+        <Route path="/statistics" element={<StatisticsPage />} />
+        <Route path="/statistics/rating/:bookingId" element={<RatingDetailPage />} />
+
+        <Route path="/notifications" element={<NotificationPage />} />
+      </Route>
     </Routes>
   );
 }
