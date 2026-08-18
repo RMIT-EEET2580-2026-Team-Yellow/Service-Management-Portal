@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 import LoginPage from "../../features/auth/pages/LoginPage";
+import DashboardPage from "../../features/dashboard/pages/DashboardPage";
 import BookingListPage from "../../features/booking/pages/BookingListPage";
 import BookingDetailPage from "../../features/booking/pages/BookingDetailPage";
 import StaffListPage from "../../features/staff/pages/StaffListPage";
@@ -12,6 +13,7 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LoginPage />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
 
       <Route path="/bookings" element={<BookingListPage />} />
       <Route path="/bookings/detail" element={<BookingDetailPage />} />
