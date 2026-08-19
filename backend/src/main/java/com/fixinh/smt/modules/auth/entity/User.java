@@ -29,7 +29,7 @@ public class User {
     @Builder.Default
     private String id = UUID.randomUUID().toString();
 
-    private String staffId; // was Long — switched to String/UUID per 30/7 agreement with SBT
+    private String staffId; 
 
     private String email;
 
