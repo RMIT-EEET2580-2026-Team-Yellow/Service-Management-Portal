@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConfirmBookingModal from "../components/ConfirmBookingModal";
 import AssignTechnicianModal from "../components/AssignTechnicianModal";
+import CancelBookingModal from "../components/CancelBookingModal";
 
 /**
  * MOCK UI ONLY — no backend wired up yet.
@@ -193,6 +194,7 @@ export default function BookingListPage() {
   const [searchText, setSearchText] = useState("");
   const [confirmingBooking, setConfirmingBooking] = useState(null);
   const [assigningBooking, setAssigningBooking] = useState(null);
+  const [cancellingBooking, setCancellingBooking] = useState(null);
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
@@ -508,11 +510,15 @@ export default function BookingListPage() {
                 Assign Technician
               </button>
             )}
-            {tab === "active" && (
-              <button className="border border-red-500 text-red-500 text-sm font-bold px-4 py-2 rounded-lg hover:bg-red-50">
-                Cancel Booking
-              </button>
-            )}
+            {tab === "active" &&
+              ["Created", "Confirmed", "Scheduled", "Working"].includes(selected.status) && (
+                <button
+                  onClick={() => setCancellingBooking(selected)}
+                  className="border border-red-500 text-red-500 text-sm font-bold px-4 py-2 rounded-lg hover:bg-red-50"
+                >
+                  Cancel Booking
+                </button>
+              )}
           </div>
         </div>
       </div>
@@ -547,6 +553,23 @@ export default function BookingListPage() {
             )
           );
           setAssigningBooking(null);
+        }}
+      />
+
+      <CancelBookingModal
+        booking={cancellingBooking}
+        onBack={() => setCancellingBooking(null)}
+        onConfirm={(reason, targetStatus) => {
+          // MOCK ONLY — real version calls POST /api/bookings/{id}/cancel
+          // (creates a BookingCancellation record, same pattern as /assign).
+          setActiveBookings((prev) =>
+            prev.map((b) =>
+              b.id === cancellingBooking.id
+                ? { ...b, status: targetStatus, reason }
+                : b
+            )
+          );
+          setCancellingBooking(null);
         }}
       />
     </div>
