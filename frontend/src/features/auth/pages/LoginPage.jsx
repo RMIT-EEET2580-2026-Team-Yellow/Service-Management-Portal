@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/logo.png";
+import { useAuth } from "../../../common/hooks/useAuth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const { signIn, loading, error } = useAuth();
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    navigate("/dashboard");
+    const success = await signIn(email, password);
+    if (success) {
+      navigate("/dashboard");
+    }
   }
 
   function handleGoogleSignIn() {
@@ -87,11 +92,18 @@ export default function LoginPage() {
             Remember me
           </label>
 
+          {error && (
+            <p className="mb-4 text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            disabled={loading}
+            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign in
+            {loading ? "Signing in…" : "Sign in"}
           </button>
 
           <div className="my-5 flex items-center gap-3">
