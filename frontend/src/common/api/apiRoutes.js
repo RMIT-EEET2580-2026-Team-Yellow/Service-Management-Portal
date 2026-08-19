@@ -5,6 +5,8 @@ export const API_ROUTES = {
 
   STAFF: "/staff",
 
+  PROVINCES: "/provinces",
+
   TECHNICIANS: "/technicians",
 
   STATISTICS: "/statistics",

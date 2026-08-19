@@ -1,28 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import fetchProvinces from "../services/provinceApi";
 
 /**
- * MOCK UI ONLY — no backend wired up yet.
+ * MOCK UI — Staff create/availability flow is still mock, but the Province
+ * dropdown below is wired to the real GET /api/v1/provinces backend.
  * Matches SRS 3.1.S1: Admin registers a new Receptionist or Technician with
  * Email, Phone Number, Password, Confirm Password, Branch Address as mandatory
  * fields. Technicians additionally get a working-availability schedule
  * (3.1.M8-style) before the account is created.
- *
- * Province options below stand in for GET /api/v1/provinces — replace with a
- * real fetch once the Staff backend calls that API.
  */
-
-const PROVINCE_OPTIONS = [
-  "Ha Noi",
-  "Hai Phong",
-  "Thanh Hoa",
-  "Nghe An",
-  "Da Nang",
-  "Khanh Hoa",
-  "Ho Chi Minh City",
-  "Can Tho",
-  "Da Nang",
-];
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WORKING_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
@@ -71,6 +58,17 @@ export default function StaffCreatePage() {
   const [selectedDays, setSelectedDays] = useState(WORKING_DAYS);
   const [startHour, setStartHour] = useState(8);
   const [endHour, setEndHour] = useState(18);
+
+  const [provinces, setProvinces] = useState([]);
+
+  const fetchProvinceData = async () => {
+    const data = await fetchProvinces();
+    setProvinces(data);
+  };
+
+  useEffect(() => {
+    fetchProvinceData();
+  }, []);
 
   const emailValid = email === "" || validateEmail(email);
   const phoneValid = phone === "" || validatePhone(phone);
@@ -131,7 +129,10 @@ export default function StaffCreatePage() {
             {/* Role toggle */}
             <div className="flex gap-3 mb-5">
               <button
-                onClick={() => setRole("Receptionist")}
+                onClick={() => {
+                  setRole("Receptionist");
+                  setProvince("");
+                }}
                 className={`flex-1 text-sm font-bold py-2.5 rounded-lg border ${
                   role === "Receptionist"
                     ? "border-indigo-600 bg-indigo-50 text-indigo-700"
@@ -141,7 +142,10 @@ export default function StaffCreatePage() {
                 📋 Receptionist
               </button>
               <button
-                onClick={() => setRole("Technician")}
+                onClick={() => {
+                  setRole("Technician");
+                  setProvince("");
+                }}
                 className={`flex-1 text-sm font-bold py-2.5 rounded-lg border ${
                   role === "Technician"
                     ? "border-indigo-600 bg-indigo-50 text-indigo-700"
@@ -298,9 +302,9 @@ export default function StaffCreatePage() {
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Select province…</option>
-                  {PROVINCE_OPTIONS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
+                  {provinces.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name} ({p.region})
                     </option>
                   ))}
                 </select>
