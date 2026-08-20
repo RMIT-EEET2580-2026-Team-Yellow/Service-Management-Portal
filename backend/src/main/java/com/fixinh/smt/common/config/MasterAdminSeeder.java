@@ -5,6 +5,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import com.fixinh.smt.common.security.RoleConfig;
 import com.fixinh.smt.modules.staff.entity.Staff;
 import com.fixinh.smt.modules.auth.entity.User;
 import com.fixinh.smt.modules.auth.repository.UserRepository;
@@ -35,7 +36,7 @@ public class MasterAdminSeeder implements CommandLineRunner {
                 .fullName("Master Admin")
                 .email(ADMIN_EMAIL)
                 .phoneNumber("0900000000")
-                .role("ADMIN")
+                .role(RoleConfig.ADMIN)
                 .streetNumber("1")
                 .streetName("Admin Street")
                 .ward("Ward 1")
@@ -48,7 +49,7 @@ public class MasterAdminSeeder implements CommandLineRunner {
                 .staffId(savedAdmin.getId())
                 .email(ADMIN_EMAIL)
                 .passwordHash(passwordEncoder.encode(ADMIN_PASSWORD))
-                .role("ADMIN")
+                .role(RoleConfig.ADMIN)
                 .build();
         userRepository.save(user);
 
