@@ -3,6 +3,7 @@
 // explicitly generated as a UUID string.
 package com.fixinh.smt.modules.auth.entity;
 
+import com.fixinh.smt.common.security.RoleConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -37,5 +38,5 @@ public class User {
 
     private String googleId;
 
-    private String role; // ADMIN | RECEPTIONIST | TECHNICIAN
+    private RoleConfig role;
 }

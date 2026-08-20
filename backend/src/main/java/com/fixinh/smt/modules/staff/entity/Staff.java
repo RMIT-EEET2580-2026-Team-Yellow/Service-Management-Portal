@@ -3,6 +3,7 @@
 // email/active fields unchanged — already correct, confirmed 30/7.
 package com.fixinh.smt.modules.staff.entity;
 
+import com.fixinh.smt.common.security.RoleConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,7 +39,7 @@ public class Staff {
 
     private String phoneNumber;
 
-    private String role; // ADMIN | RECEPTIONIST | TECHNICIAN
+    private RoleConfig role;
 
     private String streetNumber;
     private String streetName;
