@@ -241,7 +241,7 @@ export default function RegisterStaffForm({
             onChange={(e) => setProvince(e.target.value)}
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">Select province…</option>
+            <option value="">Select province</option>
             {provinces.map((p) => (
               <option key={p.id} value={p.name}>
                 {p.name} ({p.region})
