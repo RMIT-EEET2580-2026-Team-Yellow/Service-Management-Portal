@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect ,useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import fetchProvinces from "../services/provinceApi";
 /**
  * MOCK UI ONLY — no backend wired up yet.
  * Static data below stands in for GET /api/v1/staff.
@@ -17,6 +17,7 @@ const MOCK_STAFF = [
   {
     id: "#S-0142",
     name: "Nguyễn Văn A",
+    phone: "0909123321",
     email: "nguyenvana@fixinh.vn",
     role: "Technician",
     province: "Ho Chi Minh City",
@@ -25,6 +26,7 @@ const MOCK_STAFF = [
   {
     id: "#S-0139",
     name: "Trần Thị B",
+    phone: "0909123321",
     email: "tranthib@fixinh.vn",
     role: "Technician",
     province: "Ha Noi",
@@ -33,6 +35,7 @@ const MOCK_STAFF = [
   {
     id: "#S-0108",
     name: "Thinh Duong",
+    phone: "0909123321",
     email: "thinh.duong@fixinh.vn",
     role: "Receptionist",
     province: "Ho Chi Minh City",
@@ -41,6 +44,7 @@ const MOCK_STAFF = [
   {
     id: "#S-0095",
     name: "Lê Văn C",
+    phone: "0909123321",
     email: "levanc@fixinh.vn",
     role: "Technician",
     province: "Da Nang",
@@ -64,7 +68,16 @@ export default function StaffListPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("");
 
-  const provinces = [...new Set(MOCK_STAFF.map((s) => s.province))];
+  const [provinces, setProvinces] = useState([]);
+
+  const fetchProvinceData = async () => {
+    const data = await fetchProvinces();
+    setProvinces(data);
+  };
+
+  useEffect(() => {
+    fetchProvinceData();
+  }, []);
 
   const filteredStaff = MOCK_STAFF.filter((s) => matchesSearch(s, searchText))
     .filter((s) => !roleFilter || s.role === roleFilter)
@@ -74,7 +87,9 @@ export default function StaffListPage() {
     <div className="bg-gray-50 min-h-screen">
       <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-extrabold text-gray-900">Staff Accounts</h1>
+          <h1 className="text-lg font-extrabold text-gray-900">
+            Staff Accounts
+          </h1>
           <p className="text-xs text-gray-400 mt-0.5">Admin / All Staff</p>
         </div>
         <button
@@ -109,8 +124,8 @@ export default function StaffListPage() {
           >
             <option value="">Province: All</option>
             {provinces.map((p) => (
-              <option key={p} value={p}>
-                {p}
+              <option key={p.id} value={p.name}>
+                {p.name} - {p.region}
               </option>
             ))}
           </select>
@@ -122,6 +137,7 @@ export default function StaffListPage() {
               <tr className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-400">
                 <th className="text-left font-bold px-4 py-3">Staff ID</th>
                 <th className="text-left font-bold px-4 py-3">Full Name</th>
+                <th className="text-left font-bold px-4 py-3">Phone</th>
                 <th className="text-left font-bold px-4 py-3">Email</th>
                 <th className="text-left font-bold px-4 py-3">Role</th>
                 <th className="text-left font-bold px-4 py-3">Branch / Province</th>
@@ -131,15 +147,24 @@ export default function StaffListPage() {
             <tbody>
               {filteredStaff.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-sm text-gray-400"
+                  >
                     No staff match &quot;{searchText}&quot;.
                   </td>
                 </tr>
               )}
               {filteredStaff.map((s) => (
-                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3.5 font-bold text-gray-900">{s.id}</td>
+                <tr
+                  key={s.id}
+                  className="border-t border-gray-100 hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3.5 font-bold text-gray-900">
+                    {s.id}
+                  </td>
                   <td className="px-4 py-3.5">{s.name}</td>
+                  <td className="px-4 py-3.5 text-gray-500">{s.phone}</td>
                   <td className="px-4 py-3.5 text-gray-500">{s.email}</td>
                   <td className="px-4 py-3.5">
                     <span

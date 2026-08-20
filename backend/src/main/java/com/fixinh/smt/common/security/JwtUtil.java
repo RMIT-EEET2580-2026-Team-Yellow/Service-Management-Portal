@@ -30,10 +30,10 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String staffId, String role) {
+    public String generateToken(String staffId, RoleConfig role) {
         return Jwts.builder()
                 .subject(staffId)
-                .claim("role", role)
+                .claim("role", role.name())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMinutes * 60 * 1000))
                 .signWith(getSigningKey())
@@ -56,10 +56,11 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    public String extractRole(String token) {
-        return Jwts.parser().verifyWith(getSigningKey()).build()
+    public RoleConfig extractRole(String token) {
+        String role = Jwts.parser().verifyWith(getSigningKey()).build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .get("role", String.class);
+        return RoleConfig.valueOf(role);
     }
 }
