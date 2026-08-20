@@ -1,11 +1,14 @@
 import { useEffect ,useState } from "react";
-import { useNavigate } from "react-router-dom";
 import fetchProvinces from "../services/provinceApi";
 /**
  * MOCK UI ONLY — no backend wired up yet.
  * Static data below stands in for GET /api/v1/staff.
  * Replace MOCK_STAFF with real API data via useStaff() once the Staff
  * backend (3.1.S1-S8) is implemented.
+ *
+ * READ-ONLY: SMT does not create Staff accounts — SBT creates them and SMT
+ * only displays the list here. SMT still exposes POST /api/v1/staff on the
+ * backend for SBT to call, but there is no "Create Staff" UI on this side.
  */
 
 const ROLE_STYLES = {
@@ -63,7 +66,6 @@ function matchesSearch(staff, query) {
 }
 
 export default function StaffListPage() {
-  const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("");
@@ -92,12 +94,6 @@ export default function StaffListPage() {
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">Admin / All Staff</p>
         </div>
-        <button
-          onClick={() => navigate("/staff/create")}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2.5 rounded-lg whitespace-nowrap"
-        >
-          + Add New Staff
-        </button>
       </div>
 
       <div className="p-8">
