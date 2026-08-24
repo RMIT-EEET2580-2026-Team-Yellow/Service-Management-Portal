@@ -8,3 +8,8 @@ export function login(emailOrPhone, password) {
     body: JSON.stringify({ emailOrPhone, password }),
   });
 }
+
+/** Service Tier — talks to POST /api/v1/auth/logout. No Redux/state logic here. */
+export function logout() {
+  return api(API_ROUTES.LOGOUT, { method: "POST" });
+}
