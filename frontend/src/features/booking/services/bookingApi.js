@@ -18,3 +18,11 @@ export function fetchActiveBookings() {
 export function fetchPastBookings() {
   return api(`${API_ROUTES.BOOKINGS}/past`);
 }
+
+/** Service Tier — talks to PATCH /api/v1/bookings/{bookingId}/confirm (3.3.S6). */
+export function confirmBooking(bookingId, payload) {
+  return api(`${API_ROUTES.BOOKINGS}/${bookingId}/confirm`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}

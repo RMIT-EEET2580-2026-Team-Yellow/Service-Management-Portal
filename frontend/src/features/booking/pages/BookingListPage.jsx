@@ -10,14 +10,15 @@ import { useBookings } from "../../../common/hooks/useBookings";
 
 /**
  * Active/Past bookings are fetched from GET /api/v1/bookings/active|past (3.3.S3-S5, M2).
- * Confirm/Assign/Cancel are still MOCK ONLY — those backend endpoints
- * (PATCH .../confirm, .../assign, .../cancel) are still Milestone 2 stubs.
+ * Confirm is wired to PATCH .../confirm (3.3.S6). Assign/Cancel are still MOCK ONLY —
+ * those backend endpoints are still Milestone 2 stubs.
  * Pure filter helpers live in bookingHelpers.js, JSX for the two columns lives
  * in components/BookingTable.jsx and components/BookingDetailPanel.jsx.
  */
 export default function BookingListPage() {
   const navigate = useNavigate();
-  const { active, past, listLoading, listError, loadActive, loadPast } = useBookings();
+  const { active, past, listLoading, listError, loadActive, loadPast, confirm, confirming, confirmError } =
+    useBookings();
   const [tab, setTab] = useState("active");
   const [searchText, setSearchText] = useState("");
   const [confirmingBooking, setConfirmingBooking] = useState(null);
@@ -129,11 +130,17 @@ export default function BookingListPage() {
       </div>
 
       <ConfirmBookingModal
+        key={confirmingBooking?.id}
         booking={confirmingBooking}
+        confirming={confirming}
+        confirmError={confirmError}
         onCancel={() => setConfirmingBooking(null)}
-        onConfirm={() => {
-          // MOCK ONLY — real version calls PATCH /api/v1/bookings/{id}/confirm
-          setConfirmingBooking(null);
+        onConfirm={async (serviceFee, durationMinutes) => {
+          const result = await confirm(confirmingBooking.id, {
+            estimatedServiceFee: serviceFee,
+            estimatedDurationMinutes: durationMinutes,
+          });
+          if (result) setConfirmingBooking(null);
         }}
       />
 

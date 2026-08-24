@@ -6,6 +6,7 @@
 package com.fixinh.smt.modules.booking.service;
 
 import com.fixinh.smt.common.exception.ApiException;
+import com.fixinh.smt.common.exception.ResourceNotFoundException;
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.booking.dto.internal.*;
 import com.fixinh.smt.modules.booking.entity.Booking;
@@ -171,11 +172,29 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public BookingResponse confirm(String bookingId, ConfirmBookingRequest request) {
-        // TODO Milestone 2: set status "Confirmed" (3.3.S6), then notify SBP via SbpIntegrationPort
-        // with the enriched DTO (scheduledDateTime, estimatedDuration, technician names) per the
-        // 30/7 agreement — SBT enriches on their side, SMT just needs to send a fuller payload,
-        // no separate GET endpoint required. Also notify via notificationExternalService (4.M3).
-        throw new UnsupportedOperationException("Milestone 2");
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!"Created".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Only a booking with status \"Created\" can be confirmed; this booking is \"" + booking.getStatus() + "\".");
+        }
+        if (request.estimatedServiceFee() <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "estimatedServiceFee must be greater than 0.");
+        }
+        if (request.estimatedDurationMinutes() <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "estimatedDurationMinutes must be greater than 0.");
+        }
+
+        booking.setEstimatedServiceFee(request.estimatedServiceFee());
+        booking.setEstimatedDurationMinutes(request.estimatedDurationMinutes());
+        booking.setStatus("Confirmed");
+        // TODO Milestone 2: inform SBP that the booking is Confirmed (4.M3) — SbpIntegrationPort is
+        // currently inbound-only (SMT calling SBP's Rating/Statistics/Customer APIs); there is no
+        // outbound "push to SBP" client yet, so this still needs its own adapter to be built.
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 
     @Override

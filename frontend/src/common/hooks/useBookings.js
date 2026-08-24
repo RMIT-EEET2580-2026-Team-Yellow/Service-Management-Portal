@@ -4,8 +4,8 @@
 // Page components (BookingListPage, BookingCreatePage) must not call
 // useSelector/useDispatch directly — they only call this hook.
 //
-// create()/loadActive()/loadPast() are wired up (3.3.S1-S5, M2) — confirm/assign/cancel
-// are still Milestone 2 stubs on the backend (BookingServiceImpl).
+// create()/loadActive()/loadPast()/confirm() are wired up (3.3.S1-S6, M2) —
+// assign/cancel are still Milestone 2 stubs on the backend (BookingServiceImpl).
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,12 +17,16 @@ import {
   fetchActiveBookingsSuccess,
   fetchPastBookingsSuccess,
   fetchBookingsFailure,
+  confirmBookingStart,
+  confirmBookingSuccess,
+  confirmBookingFailure,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
 export function useBookings() {
   const dispatch = useDispatch();
-  const { creating, createError, active, past, listLoading, listError } = useSelector((state) => state.booking);
+  const { creating, createError, active, past, listLoading, listError, confirming, confirmError } =
+    useSelector((state) => state.booking);
 
   const create = useCallback(
     async (bookingData) => {
@@ -59,5 +63,33 @@ export function useBookings() {
     }
   }, [dispatch]);
 
-  return { creating, createError, create, active, past, listLoading, listError, loadActive, loadPast };
+  const confirm = useCallback(
+    async (bookingId, payload) => {
+      dispatch(confirmBookingStart());
+      try {
+        const response = await bookingApi.confirmBooking(bookingId, payload);
+        dispatch(confirmBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(confirmBookingFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
+  return {
+    creating,
+    createError,
+    create,
+    active,
+    past,
+    listLoading,
+    listError,
+    loadActive,
+    loadPast,
+    confirming,
+    confirmError,
+    confirm,
+  };
 }
