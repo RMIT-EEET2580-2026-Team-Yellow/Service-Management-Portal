@@ -5,16 +5,24 @@
 // .areAllAssignmentsAccepted(...) instead.
 package com.fixinh.smt.modules.booking.service;
 
+import com.fixinh.smt.common.exception.ApiException;
+import com.fixinh.smt.common.exception.ResourceNotFoundException;
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.booking.dto.internal.*;
+import com.fixinh.smt.modules.booking.entity.Booking;
+import com.fixinh.smt.modules.booking.mapper.BookingMapper;
 import com.fixinh.smt.modules.booking.repository.BookingRepository;
 import com.fixinh.smt.modules.booking.service.external.BookingExternalService;
 import com.fixinh.smt.modules.booking.service.internal.BookingInternalService;
 import com.fixinh.smt.modules.notification.service.external.NotificationExternalService;
 import com.fixinh.smt.modules.technician.service.external.TechnicianExternalService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,22 +62,90 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     @Override
     public BookingExternalDto createFromCustomer(String customerId, String serviceType, String issueDescription,
                                                    String serviceAddress, LocalDate preferredDate,
-                                                   java.time.LocalTime availableStart, java.time.LocalTime availableEnd) {
-        // TODO Milestone 2: persist with status "Created" (3.3.S2, mirrors SBP-side booking creation).
-        // customerId is now a UUID string (was Long) per 30/7 agreement with SBT.
-        throw new UnsupportedOperationException("Milestone 2");
+                                                   LocalTime availableStart, LocalTime availableEnd) {
+        Booking booking = buildAndSaveBooking(customerId, serviceType, issueDescription, serviceAddress,
+                preferredDate, availableStart, availableEnd);
+        return BookingMapper.toExternalDto(booking);
     }
 
     // ---- BookingInternalService (controller-only, 3.3) ----
 
     @Override
+    public BookingResponse create(BookingRequest request) {
+        Booking booking = buildAndSaveBooking(request.customerId(), request.serviceType(), request.issueDescription(),
+                request.serviceAddress(), request.preferredDate(), request.availableStart(), request.availableEnd());
+        return BookingMapper.toResponse(booking);
+    }
+
+    /**
+     * Shared by the Receptionist-facing create() and the SBP-facing createFromCustomer() (3.3.S1:
+     * "Receptionists AND SBP" create a booking the same way). Validates the fields a customer/
+     * Receptionist supplies (3.3.S2), then persists with status "Created".
+     */
+    private Booking buildAndSaveBooking(String customerId, String serviceType, String issueDescription,
+                                         String serviceAddress, LocalDate preferredDate,
+                                         LocalTime availableStart, LocalTime availableEnd) {
+        if (!StringUtils.hasText(customerId)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "customerId is required: the booking must reference an existing customer.");
+        }
+        if (!StringUtils.hasText(serviceType)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "serviceType is required, e.g. \"Plumbing\", \"Electrical\", \"Electronics\".");
+        }
+        if (!StringUtils.hasText(serviceAddress)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "serviceAddress is required, e.g. \"22 Le Loi, District 1, HCMC\".");
+        }
+        if (!StringUtils.hasText(issueDescription)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "issueDescription is required, e.g. \"Sink pipe is leaking\".");
+        }
+        if (preferredDate == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "preferredDate is required and must be in the format YYYY-MM-DD.");
+        }
+        if (preferredDate.isBefore(LocalDate.now())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "preferredDate cannot be in the past: " + preferredDate + " is before today.");
+        }
+        if (availableStart == null || availableEnd == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "availableStart and availableEnd are both required, e.g. \"18:00\" to \"20:00\".");
+        }
+        if (!availableStart.isBefore(availableEnd)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "availableStart (" + availableStart + ") must be earlier than availableEnd (" + availableEnd + ").");
+        }
+
+        Booking booking = Booking.builder()
+                .customerId(customerId)
+                .serviceType(serviceType)
+                .issueDescription(issueDescription)
+                .serviceAddress(serviceAddress)
+                .preferredDate(preferredDate)
+                .availableStart(availableStart)
+                .availableEnd(availableEnd)
+                .status("Created")
+                .build();
+        return bookingRepository.save(booking);
+    }
+
+    /** Created, Confirmed, Scheduled, Working (3.3.M2). */
+    private static final List<String> ACTIVE_STATUSES = List.of("Created", "Confirmed", "Scheduled", "Working");
+
+    /** Completed, Cancelled by Customer, Terminated by Customer, Aborted by Technician (3.3.M2). */
+    private static final List<String> PAST_STATUSES = List.of(
+            "Completed", "Cancelled by Customer", "Terminated by Customer", "Aborted by Technician");
+
+    @Override
     public List<BookingResponse> listActive() {
-        throw new UnsupportedOperationException("Milestone 2");
+        return listByStatuses(ACTIVE_STATUSES);
     }
 
     @Override
     public List<BookingResponse> listPast() {
-        throw new UnsupportedOperationException("Milestone 2");
+        return listByStatuses(PAST_STATUSES);
+    }
+
+    /** 3.3.S3/S4/S5, M2 — newest first. Includes assigned technician full names (3.3.S4). */
+    private List<BookingResponse> listByStatuses(List<String> statuses) {
+        return bookingRepository.findByStatusIn(statuses).stream()
+                .sorted(Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .toList();
     }
 
     @Override
@@ -80,17 +156,45 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public List<BookingResponse> filter(String serviceType, LocalDate from, LocalDate to, String sort) {
-        // TODO Milestone 2: filter by Service Type + Creation Date Range, sort asc/desc (3.3.M10).
-        throw new UnsupportedOperationException("Milestone 2");
+        Comparator<Booking> byCreatedAt = Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
+        if (!"asc".equalsIgnoreCase(sort)) {
+            byCreatedAt = byCreatedAt.reversed();
+        }
+
+        return bookingRepository.findAll().stream()
+                .filter(b -> !StringUtils.hasText(serviceType) || serviceType.equalsIgnoreCase(b.getServiceType()))
+                .filter(b -> from == null || (b.getCreatedAt() != null && !b.getCreatedAt().toLocalDate().isBefore(from)))
+                .filter(b -> to == null || (b.getCreatedAt() != null && !b.getCreatedAt().toLocalDate().isAfter(to)))
+                .sorted(byCreatedAt)
+                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .toList();
     }
 
     @Override
     public BookingResponse confirm(String bookingId, ConfirmBookingRequest request) {
-        // TODO Milestone 2: set status "Confirmed" (3.3.S6), then notify SBP via SbpIntegrationPort
-        // with the enriched DTO (scheduledDateTime, estimatedDuration, technician names) per the
-        // 30/7 agreement — SBT enriches on their side, SMT just needs to send a fuller payload,
-        // no separate GET endpoint required. Also notify via notificationExternalService (4.M3).
-        throw new UnsupportedOperationException("Milestone 2");
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!"Created".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Only a booking with status \"Created\" can be confirmed; this booking is \"" + booking.getStatus() + "\".");
+        }
+        if (request.estimatedServiceFee() <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "estimatedServiceFee must be greater than 0.");
+        }
+        if (request.estimatedDurationMinutes() <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "estimatedDurationMinutes must be greater than 0.");
+        }
+
+        booking.setEstimatedServiceFee(request.estimatedServiceFee());
+        booking.setEstimatedDurationMinutes(request.estimatedDurationMinutes());
+        booking.setStatus("Confirmed");
+        // TODO Milestone 2: inform SBP that the booking is Confirmed (4.M3) — SbpIntegrationPort is
+        // currently inbound-only (SMT calling SBP's Rating/Statistics/Customer APIs); there is no
+        // outbound "push to SBP" client yet, so this still needs its own adapter to be built.
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 
     @Override

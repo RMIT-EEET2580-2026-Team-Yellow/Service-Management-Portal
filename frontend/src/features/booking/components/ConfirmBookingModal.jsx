@@ -1,10 +1,33 @@
+import { useState } from "react";
+
 /**
- * MOCK UI ONLY — no backend wired up yet (3.3.S6, Created → Confirmed).
- * Wire onConfirm up to PATCH /api/bookings/{id}/confirm once the Booking
- * backend is ready — see SMP API for UI Mock.pdf.
+ * Receptionist confirms a Created booking with an estimated fee + duration (3.3.S6).
+ * The parent must render this with `key={booking?.id}` so the form state below resets
+ * whenever a different booking is opened, instead of carrying over stale values.
  */
-export default function ConfirmBookingModal({ booking, onCancel, onConfirm }) {
+export default function ConfirmBookingModal({ booking, onCancel, onConfirm, confirming, confirmError }) {
+  const [serviceFee, setServiceFee] = useState(booking?.suggestedFee ?? "");
+  const [durationMinutes, setDurationMinutes] = useState(booking?.suggestedDuration ?? "");
+  const [formError, setFormError] = useState(null);
+
   if (!booking) return null;
+
+  function handleConfirm() {
+    const fee = Number(serviceFee);
+    const duration = Number(durationMinutes);
+    if (!serviceFee || fee <= 0) {
+      setFormError("Service fee must be greater than 0.");
+      return;
+    }
+    if (!durationMinutes || duration <= 0) {
+      setFormError("Estimated duration must be greater than 0.");
+      return;
+    }
+    setFormError(null);
+    onConfirm(fee, duration);
+  }
+
+  const displayedError = formError || confirmError;
 
   return (
     <div className="absolute inset-0 bg-[#141632]/40 flex items-center justify-center z-10">
@@ -15,6 +38,15 @@ export default function ConfirmBookingModal({ booking, onCancel, onConfirm }) {
         </div>
 
         <div className="px-6 py-5">
+          {displayedError && (
+            <p
+              className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 mb-4"
+              role="alert"
+            >
+              {displayedError}
+            </p>
+          )}
+
           <div className="grid grid-cols-2 gap-3 text-xs mb-4">
             <div>
               <span className="text-gray-400 block text-[10px] mb-0.5">Preferred Date</span>
@@ -32,18 +64,22 @@ export default function ConfirmBookingModal({ booking, onCancel, onConfirm }) {
             </label>
             <input
               type="number"
-              defaultValue={booking.suggestedFee}
+              min="1"
+              value={serviceFee}
+              onChange={(e) => setServiceFee(e.target.value)}
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1.5">
-              Estimated Duration (hours)
+              Estimated Duration (minutes)
             </label>
             <input
               type="number"
-              defaultValue={booking.suggestedDuration}
+              min="1"
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -57,10 +93,11 @@ export default function ConfirmBookingModal({ booking, onCancel, onConfirm }) {
             Cancel
           </button>
           <button
-            onClick={onConfirm}
-            className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg px-4 py-2.5"
+            onClick={handleConfirm}
+            disabled={confirming}
+            className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-4 py-2.5"
           >
-            Confirm Booking →
+            {confirming ? "Confirming…" : "Confirm Booking →"}
           </button>
         </div>
       </div>

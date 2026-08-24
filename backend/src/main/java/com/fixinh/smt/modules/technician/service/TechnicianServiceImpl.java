@@ -4,9 +4,12 @@
 // module (A.2.4) — BookingServiceImpl no longer injects that repository directly.
 package com.fixinh.smt.modules.technician.service;
 
+import com.fixinh.smt.modules.staff.dto.external.StaffExternalDto;
+import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
+import com.fixinh.smt.modules.technician.entity.Technician;
 import com.fixinh.smt.modules.technician.entity.TechnicianAssignment;
 import com.fixinh.smt.modules.technician.repository.TechnicianAssignmentRepository;
 import com.fixinh.smt.modules.technician.repository.TechnicianAvailabilityRepository;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TechnicianServiceImpl implements TechnicianExternalService, TechnicianInternalService {
@@ -25,13 +29,16 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
     private final TechnicianRepository technicianRepository;
     private final TechnicianAvailabilityRepository technicianAvailabilityRepository;
     private final TechnicianAssignmentRepository technicianAssignmentRepository;
+    private final StaffExternalService staffExternalService;
 
     public TechnicianServiceImpl(TechnicianRepository technicianRepository,
                                   TechnicianAvailabilityRepository technicianAvailabilityRepository,
-                                  TechnicianAssignmentRepository technicianAssignmentRepository) {
+                                  TechnicianAssignmentRepository technicianAssignmentRepository,
+                                  StaffExternalService staffExternalService) {
         this.technicianRepository = technicianRepository;
         this.technicianAvailabilityRepository = technicianAvailabilityRepository;
         this.technicianAssignmentRepository = technicianAssignmentRepository;
+        this.staffExternalService = staffExternalService;
     }
 
     // ---- TechnicianExternalService (consumed by Booking module, 3.3.M3/M4) ----
@@ -71,6 +78,19 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         //   .findByBookingId(bookingId); return !rows.isEmpty() && rows.stream()
         //   .allMatch(a -> "ACCEPTED".equals(a.getStatus()));
         throw new UnsupportedOperationException("Milestone 2");
+    }
+
+    @Override
+    public List<String> findAssignedTechnicianNames(String bookingId) {
+        return technicianAssignmentRepository.findByBookingId(bookingId).stream()
+                .map(TechnicianAssignment::getTechnicianId)
+                .map(technicianRepository::findById)
+                .flatMap(Optional::stream)
+                .map(Technician::getStaffId)
+                .map(staffExternalService::findById)
+                .flatMap(Optional::stream)
+                .map(StaffExternalDto::fullName)
+                .toList();
     }
 
     // ---- TechnicianInternalService (controller-only, 3.3.M6-M8) ----
