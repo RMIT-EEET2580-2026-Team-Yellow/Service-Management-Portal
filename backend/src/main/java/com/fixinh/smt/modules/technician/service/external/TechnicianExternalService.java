@@ -27,4 +27,8 @@ public interface TechnicianExternalService {
     /** True once every TechnicianAssignment for this booking has status ACCEPTED (3.3.M5) —
      *  Booking uses this to decide when to flip status to "Scheduled". */
     boolean areAllAssignmentsAccepted(String bookingId);
+
+    /** Full names of technicians assigned to this booking, any assignment status (3.3.S4) —
+     *  used by Booking's list endpoints. Booking must never read TechnicianAssignment directly (A.2.4). */
+    List<String> findAssignedTechnicianNames(String bookingId);
 }

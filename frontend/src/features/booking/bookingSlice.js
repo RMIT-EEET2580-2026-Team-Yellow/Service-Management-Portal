@@ -6,6 +6,11 @@ const bookingSlice = createSlice({
     creating: false,
     createError: null,
     lastCreated: null,
+
+    active: [],
+    past: [],
+    listLoading: false,
+    listError: null,
   },
   reducers: {
     createBookingStart(state) {
@@ -20,8 +25,33 @@ const bookingSlice = createSlice({
       state.creating = false;
       state.createError = action.payload;
     },
+
+    fetchBookingsStart(state) {
+      state.listLoading = true;
+      state.listError = null;
+    },
+    fetchActiveBookingsSuccess(state, action) {
+      state.listLoading = false;
+      state.active = action.payload;
+    },
+    fetchPastBookingsSuccess(state, action) {
+      state.listLoading = false;
+      state.past = action.payload;
+    },
+    fetchBookingsFailure(state, action) {
+      state.listLoading = false;
+      state.listError = action.payload;
+    },
   },
 });
 
-export const { createBookingStart, createBookingSuccess, createBookingFailure } = bookingSlice.actions;
+export const {
+  createBookingStart,
+  createBookingSuccess,
+  createBookingFailure,
+  fetchBookingsStart,
+  fetchActiveBookingsSuccess,
+  fetchPastBookingsSuccess,
+  fetchBookingsFailure,
+} = bookingSlice.actions;
 export default bookingSlice.reducer;

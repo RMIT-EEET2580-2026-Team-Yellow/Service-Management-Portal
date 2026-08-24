@@ -1,22 +1,23 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConfirmBookingModal from "../components/ConfirmBookingModal";
 import AssignTechnicianModal from "../components/AssignTechnicianModal";
 import CancelBookingModal from "../components/CancelBookingModal";
 import BookingTable from "../components/BookingTable";
 import BookingDetailPanel from "../components/BookingDetailPanel";
-import { MOCK_ACTIVE, MOCK_PAST } from "../mockBookings";
-import { matchesSearch, matchesDateRange } from "../bookingHelpers";
+import { matchesSearch, matchesDateRange, toDisplayBooking } from "../bookingHelpers";
+import { useBookings } from "../../../common/hooks/useBookings";
 
 /**
- * MOCK UI ONLY — no backend wired up yet.
- * Mock data lives in mockBookings.js, pure filter helpers live in
- * bookingHelpers.js, JSX for the two columns lives in
- * components/BookingTable.jsx and components/BookingDetailPanel.jsx — this
- * file only owns the state.
+ * Active/Past bookings are fetched from GET /api/v1/bookings/active|past (3.3.S3-S5, M2).
+ * Confirm/Assign/Cancel are still MOCK ONLY — those backend endpoints
+ * (PATCH .../confirm, .../assign, .../cancel) are still Milestone 2 stubs.
+ * Pure filter helpers live in bookingHelpers.js, JSX for the two columns lives
+ * in components/BookingTable.jsx and components/BookingDetailPanel.jsx.
  */
 export default function BookingListPage() {
   const navigate = useNavigate();
+  const { active, past, listLoading, listError, loadActive, loadPast } = useBookings();
   const [tab, setTab] = useState("active");
   const [searchText, setSearchText] = useState("");
   const [confirmingBooking, setConfirmingBooking] = useState(null);
@@ -25,9 +26,17 @@ export default function BookingListPage() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
-  const [activeBookings, setActiveBookings] = useState(MOCK_ACTIVE);
+  const [selectedId, setSelectedId] = useState(null);
 
-  const list = tab === "active" ? activeBookings : MOCK_PAST;
+  useEffect(() => {
+    loadActive();
+    loadPast();
+  }, [loadActive, loadPast]);
+
+  const activeDisplay = useMemo(() => active.map(toDisplayBooking), [active]);
+  const pastDisplay = useMemo(() => past.map(toDisplayBooking), [past]);
+
+  const list = tab === "active" ? activeDisplay : pastDisplay;
 
   const filteredList = list
     .filter((b) => matchesSearch(b, searchText))
@@ -39,8 +48,7 @@ export default function BookingListPage() {
         : a.creationDateISO.localeCompare(b.creationDateISO)
     );
 
-  const [selectedId, setSelectedId] = useState(MOCK_ACTIVE[2].id);
-  const selected = filteredList.find((b) => b.id === selectedId) || filteredList[0] || list[0];
+  const selected = filteredList.find((b) => b.id === selectedId) || filteredList[0];
 
   function switchTab(next) {
     setTab(next);
@@ -48,7 +56,7 @@ export default function BookingListPage() {
     setServiceTypeFilter("");
     setDateRangeFilter("");
     setSortOrder("newest");
-    setSelectedId(next === "active" ? MOCK_ACTIVE[0].id : MOCK_PAST[0].id);
+    setSelectedId(null);
   }
 
   return (
@@ -74,38 +82,52 @@ export default function BookingListPage() {
         </div>
       </div>
 
-      <div className="flex gap-6 p-8">
-        <BookingTable
-          tab={tab}
-          switchTab={switchTab}
-          searchText={searchText}
-          setSearchText={setSearchText}
-          serviceTypeFilter={serviceTypeFilter}
-          setServiceTypeFilter={setServiceTypeFilter}
-          dateRangeFilter={dateRangeFilter}
-          setDateRangeFilter={setDateRangeFilter}
-          sortOrder={sortOrder}
-          setSortOrder={setSortOrder}
-          list={list}
-          filteredList={filteredList}
-          selectedId={selectedId}
-          setSelectedId={setSelectedId}
-        />
+      {listError && (
+        <div className="mx-8 mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5" role="alert">
+          {listError}
+        </div>
+      )}
 
-        <BookingDetailPanel
-          selected={selected}
-          tab={tab}
-          onConfirmBooking={() => setConfirmingBooking(selected)}
-          onAssignTechnician={() => setAssigningBooking(selected)}
-          onCancelBooking={() => setCancellingBooking(selected)}
-        />
+      <div className="flex gap-6 p-8">
+        {listLoading && list.length === 0 ? (
+          <div className="flex-1 text-sm text-gray-400 py-12 text-center">Loading bookings…</div>
+        ) : (
+          <>
+            <BookingTable
+              tab={tab}
+              switchTab={switchTab}
+              searchText={searchText}
+              setSearchText={setSearchText}
+              serviceTypeFilter={serviceTypeFilter}
+              setServiceTypeFilter={setServiceTypeFilter}
+              dateRangeFilter={dateRangeFilter}
+              setDateRangeFilter={setDateRangeFilter}
+              sortOrder={sortOrder}
+              setSortOrder={setSortOrder}
+              list={list}
+              filteredList={filteredList}
+              selectedId={selected?.id}
+              setSelectedId={setSelectedId}
+            />
+
+            {selected && (
+              <BookingDetailPanel
+                selected={selected}
+                tab={tab}
+                onConfirmBooking={() => setConfirmingBooking(selected)}
+                onAssignTechnician={() => setAssigningBooking(selected)}
+                onCancelBooking={() => setCancellingBooking(selected)}
+              />
+            )}
+          </>
+        )}
       </div>
 
       <ConfirmBookingModal
         booking={confirmingBooking}
         onCancel={() => setConfirmingBooking(null)}
         onConfirm={() => {
-          // MOCK ONLY — real version calls PATCH /api/bookings/{id}/confirm
+          // MOCK ONLY — real version calls PATCH /api/v1/bookings/{id}/confirm
           setConfirmingBooking(null);
         }}
       />
@@ -113,23 +135,10 @@ export default function BookingListPage() {
       <AssignTechnicianModal
         booking={assigningBooking}
         onCancel={() => setAssigningBooking(null)}
-        onAssign={(selectedNames) => {
-          // MOCK ONLY — real version calls POST /api/bookings/{id}/assign,
+        onAssign={() => {
+          // MOCK ONLY — real version calls PATCH /api/v1/bookings/{id}/assign,
           // which creates TechnicianAssignment records (response starts as
           // Pending until the Technician accepts/rejects — 3.3.M4).
-          setActiveBookings((prev) =>
-            prev.map((b) =>
-              b.id === assigningBooking.id
-                ? {
-                    ...b,
-                    technicians: selectedNames.map((name) => ({
-                      name,
-                      response: "Pending",
-                    })),
-                  }
-                : b
-            )
-          );
           setAssigningBooking(null);
         }}
       />
@@ -137,12 +146,9 @@ export default function BookingListPage() {
       <CancelBookingModal
         booking={cancellingBooking}
         onBack={() => setCancellingBooking(null)}
-        onConfirm={(reason, targetStatus) => {
-          // MOCK ONLY — real version calls POST /api/bookings/{id}/cancel
+        onConfirm={() => {
+          // MOCK ONLY — real version calls PATCH /api/v1/bookings/{id}/cancel
           // (creates a BookingCancellation record, same pattern as /assign).
-          setActiveBookings((prev) =>
-            prev.map((b) => (b.id === cancellingBooking.id ? { ...b, status: targetStatus, reason } : b))
-          );
           setCancellingBooking(null);
         }}
       />

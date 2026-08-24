@@ -8,3 +8,13 @@ export function createBooking(bookingData) {
     body: JSON.stringify(bookingData),
   });
 }
+
+/** Service Tier — talks to GET /api/v1/bookings/active (3.3.S3/S5, M2). */
+export function fetchActiveBookings() {
+  return api(`${API_ROUTES.BOOKINGS}/active`);
+}
+
+/** Service Tier — talks to GET /api/v1/bookings/past (3.3.S3, M2). */
+export function fetchPastBookings() {
+  return api(`${API_ROUTES.BOOKINGS}/past`);
+}

@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -121,14 +122,29 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         return bookingRepository.save(booking);
     }
 
+    /** Created, Confirmed, Scheduled, Working (3.3.M2). */
+    private static final List<String> ACTIVE_STATUSES = List.of("Created", "Confirmed", "Scheduled", "Working");
+
+    /** Completed, Cancelled by Customer, Terminated by Customer, Aborted by Technician (3.3.M2). */
+    private static final List<String> PAST_STATUSES = List.of(
+            "Completed", "Cancelled by Customer", "Terminated by Customer", "Aborted by Technician");
+
     @Override
     public List<BookingResponse> listActive() {
-        throw new UnsupportedOperationException("Milestone 2");
+        return listByStatuses(ACTIVE_STATUSES);
     }
 
     @Override
     public List<BookingResponse> listPast() {
-        throw new UnsupportedOperationException("Milestone 2");
+        return listByStatuses(PAST_STATUSES);
+    }
+
+    /** 3.3.S3/S4/S5, M2 — newest first. Includes assigned technician full names (3.3.S4). */
+    private List<BookingResponse> listByStatuses(List<String> statuses) {
+        return bookingRepository.findByStatusIn(statuses).stream()
+                .sorted(Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .toList();
     }
 
     @Override
