@@ -12,6 +12,8 @@ export default function BookingTable({
   setSearchText,
   serviceTypeFilter,
   setServiceTypeFilter,
+  statusFilter,
+  setStatusFilter,
   dateRangeFilter,
   setDateRangeFilter,
   sortOrder,
@@ -64,6 +66,19 @@ export default function BookingTable({
           </select>
 
           <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-sm font-bold text-indigo-600 bg-white border border-gray-200 rounded-lg px-4 py-2.5 whitespace-nowrap cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Status: All</option>
+            {[...new Set(list.map((b) => b.status))].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={dateRangeFilter}
             onChange={(e) => setDateRangeFilter(e.target.value)}
             className="text-sm font-bold text-indigo-600 bg-white border border-gray-200 rounded-lg px-4 py-2.5 whitespace-nowrap cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -100,7 +115,7 @@ export default function BookingTable({
             {filteredList.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
-                  No bookings match &quot;{searchText}&quot;.
+                  {searchText ? `No bookings match "${searchText}".` : "No bookings match the current filters."}
                 </td>
               </tr>
             )}

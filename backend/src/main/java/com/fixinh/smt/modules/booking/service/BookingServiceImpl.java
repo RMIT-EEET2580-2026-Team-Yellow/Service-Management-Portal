@@ -155,8 +155,18 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public List<BookingResponse> filter(String serviceType, LocalDate from, LocalDate to, String sort) {
-        // TODO Milestone 2: filter by Service Type + Creation Date Range, sort asc/desc (3.3.M10).
-        throw new UnsupportedOperationException("Milestone 2");
+        Comparator<Booking> byCreatedAt = Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
+        if (!"asc".equalsIgnoreCase(sort)) {
+            byCreatedAt = byCreatedAt.reversed();
+        }
+
+        return bookingRepository.findAll().stream()
+                .filter(b -> !StringUtils.hasText(serviceType) || serviceType.equalsIgnoreCase(b.getServiceType()))
+                .filter(b -> from == null || (b.getCreatedAt() != null && !b.getCreatedAt().toLocalDate().isBefore(from)))
+                .filter(b -> to == null || (b.getCreatedAt() != null && !b.getCreatedAt().toLocalDate().isAfter(to)))
+                .sorted(byCreatedAt)
+                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .toList();
     }
 
     @Override

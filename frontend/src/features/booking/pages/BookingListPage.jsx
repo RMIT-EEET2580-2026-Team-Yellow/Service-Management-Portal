@@ -24,6 +24,7 @@ export default function BookingListPage() {
   const [assigningBooking, setAssigningBooking] = useState(null);
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [selectedId, setSelectedId] = useState(null);
@@ -41,6 +42,7 @@ export default function BookingListPage() {
   const filteredList = list
     .filter((b) => matchesSearch(b, searchText))
     .filter((b) => !serviceTypeFilter || b.service === serviceTypeFilter)
+    .filter((b) => !statusFilter || b.status === statusFilter)
     .filter((b) => matchesDateRange(b, dateRangeFilter))
     .sort((a, b) =>
       sortOrder === "newest"
@@ -54,6 +56,7 @@ export default function BookingListPage() {
     setTab(next);
     setSearchText("");
     setServiceTypeFilter("");
+    setStatusFilter("");
     setDateRangeFilter("");
     setSortOrder("newest");
     setSelectedId(null);
@@ -100,6 +103,8 @@ export default function BookingListPage() {
               setSearchText={setSearchText}
               serviceTypeFilter={serviceTypeFilter}
               setServiceTypeFilter={setServiceTypeFilter}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
               dateRangeFilter={dateRangeFilter}
               setDateRangeFilter={setDateRangeFilter}
               sortOrder={sortOrder}
