@@ -11,13 +11,14 @@ import TechnicianBookingPage from "../../features/technician/pages/TechnicianBoo
 import StatisticsPage from "../../features/statistics/pages/StatisticsPage";
 import RatingDetailPage from "../../features/statistics/pages/RatingDetailPage";
 import NotificationPage from "../../features/notification/pages/NotificationPage";
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LoginPage />} />
 
-      <Route element={<AppLayout />}>
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<DashboardPage />} />
 
         <Route path="/bookings" element={<BookingListPage />} />
