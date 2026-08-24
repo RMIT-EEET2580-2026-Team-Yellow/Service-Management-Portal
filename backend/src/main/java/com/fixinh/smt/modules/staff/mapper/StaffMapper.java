@@ -10,12 +10,12 @@ public final class StaffMapper {
     }
 
     public static StaffResponse toResponse(Staff staff) {
-        // TODO Milestone 2
-        throw new UnsupportedOperationException("Milestone 2");
+        return new StaffResponse(staff.getId(), staff.getFullName(), staff.getEmail(), staff.getPhoneNumber(),
+                staff.getRole(), staff.getProvince(), staff.isActive());
     }
 
     public static StaffExternalDto toExternalDto(Staff staff) {
-        // TODO Milestone 2
-        throw new UnsupportedOperationException("Milestone 2");
+        return new StaffExternalDto(staff.getId(), staff.getFullName(), staff.getEmail(), staff.getRole(),
+                staff.isActive());
     }
 }

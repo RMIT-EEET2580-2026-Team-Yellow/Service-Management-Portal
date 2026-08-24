@@ -3,8 +3,10 @@
 // the external/internal split shown in the diagrams (A.2.3/A.2.4).
 package com.fixinh.smt.modules.auth.service;
 
+import com.fixinh.smt.common.exception.ResourceNotFoundException;
 import com.fixinh.smt.common.exception.UnauthorizedException;
 import com.fixinh.smt.common.security.JwtUtil;
+import com.fixinh.smt.common.security.RoleConfig;
 import com.fixinh.smt.modules.auth.dto.external.AuthExternalDto;
 import com.fixinh.smt.modules.auth.dto.internal.LoginRequest;
 import com.fixinh.smt.modules.auth.dto.internal.LoginResponse;
@@ -64,7 +66,33 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
         throw new UnsupportedOperationException("Milestone 2");
     }
 
-    // ---- AuthExternalService (consumed by common.security JwtFilter/CustomUserDetailsService) ----
+    // ---- AuthExternalService (consumed by common.security JwtFilter/CustomUserDetailsService,
+    //      and by the Staff module for create/update/delete Staff CRUD, 3.5.S1) ----
+
+    @Override
+    public void createCredentials(String staffId, String email, String rawPassword, RoleConfig role) {
+        User user = User.builder()
+                .staffId(staffId)
+                .email(email)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .role(role)
+                .build();
+        userRepository.save(user);
+    }
+
+    @Override
+    public void updateCredentials(String staffId, String email, RoleConfig role) {
+        User user = userRepository.findByStaffId(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("User credentials not found for staffId: " + staffId));
+        user.setEmail(email);
+        user.setRole(role);
+        userRepository.save(user);
+    }
+
+    @Override
+    public void deleteCredentials(String staffId) {
+        userRepository.findByStaffId(staffId).ifPresent(userRepository::delete);
+    }
 
     @Override
     public Optional<AuthExternalDto> validateToken(String token) {
