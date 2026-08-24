@@ -42,4 +42,10 @@ public class StaffController {
     public ApiResponse<StaffResponse> update(@PathVariable String staffId, @Valid @RequestBody StaffRequest request) {
         return ApiResponse.ok(staffInternalService.update(staffId, request));
     }
+
+    @DeleteMapping("/{staffId}")
+    public ApiResponse<Void> delete(@PathVariable String staffId) {
+        staffInternalService.delete(staffId);
+        return ApiResponse.ok(null);
+    }
 }
