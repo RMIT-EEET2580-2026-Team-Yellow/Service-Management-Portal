@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import NavIcon from "./NavIcon";
+import { useAuth } from "../../common/hooks/useAuth";
 
 const navItems = [
   { icon: "grid", label: "Dashboard", path: "/dashboard" },
@@ -19,6 +20,7 @@ export default function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -70,8 +72,9 @@ export default function Sidebar() {
               {isDark ? "Switch to light mode" : "Switch to dark mode"}
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 setMenuOpen(false);
+                await signOut();
                 navigate("/");
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-red-400 hover:bg-slate-700"

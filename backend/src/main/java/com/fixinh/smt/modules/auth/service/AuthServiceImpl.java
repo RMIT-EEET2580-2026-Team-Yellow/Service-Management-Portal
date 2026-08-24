@@ -50,8 +50,12 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
 
     @Override
     public void logout(String token) {
-        // TODO Milestone 2: invalidate session client-side per 3.2.M4.
-        throw new UnsupportedOperationException("Milestone 2");
+        // Stateless JWT (3.2.M4): there is no server-side session to invalidate — the
+        // client discards the token. Still validate it here so a malformed/expired
+        // token surfaces as 401 rather than the endpoint silently no-op'ing.
+        if (!jwtUtil.isValid(token)) {
+            throw new UnauthorizedException("Invalid or expired token");
+        }
     }
 
     @Override
