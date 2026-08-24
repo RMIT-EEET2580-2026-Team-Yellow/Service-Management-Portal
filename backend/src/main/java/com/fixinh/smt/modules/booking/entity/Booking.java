@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
@@ -30,7 +31,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Booking {
+public class Booking implements Persistable<String> {
 
     @Id
     @Builder.Default
@@ -66,4 +67,15 @@ public class Booking {
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+    /**
+     * The id is pre-populated with a UUID at construction (not left null for Mongo to assign),
+     * so Spring Data's default "is-new" check (id == null) would otherwise treat every insert as
+     * an update and skip {@code @CreatedDate} population. createdAt is only ever set by that
+     * auditing callback, so its absence is what actually marks a not-yet-persisted document.
+     */
+    @Override
+    public boolean isNew() {
+        return createdAt == null;
+    }
 }

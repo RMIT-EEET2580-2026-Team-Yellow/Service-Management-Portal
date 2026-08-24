@@ -1,44 +1,35 @@
 // src/common/hooks/useBookings.js
 //
 // Hook Tier for the Booking feature.
-// Page components (BookingListPage, BookingDetailPage) must not call
-// useSelector/useDispatch directly — they only call this hook, which
-// wraps bookingSlice and exposes a clean, page-friendly API.
+// Page components (BookingListPage, BookingCreatePage) must not call
+// useSelector/useDispatch directly — they only call this hook.
 //
-// Depends on bookingSlice exporting the thunks below (Milestone 2 — the
-// slice file currently exists but is empty).
+// Only create() is wired up (3.3.S1/S2) — listActive/listPast/confirm/assign/cancel
+// are still Milestone 2 stubs on the backend (BookingServiceImpl).
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  fetchActiveBookings,
-  fetchPastBookings,
-  confirmBooking,
-  assignTechnician,
-  cancelBooking,
-} from '../store/bookingSlice';
+import { createBookingStart, createBookingSuccess, createBookingFailure } from '../../features/booking/bookingSlice';
+import * as bookingApi from '../../features/booking/services/bookingApi';
 
 export function useBookings() {
   const dispatch = useDispatch();
-  const { active, past, loading, error } = useSelector((state) => state.booking);
+  const { creating, createError } = useSelector((state) => state.booking);
 
-  const loadActive = useCallback(() => dispatch(fetchActiveBookings()), [dispatch]);
-  const loadPast = useCallback(() => dispatch(fetchPastBookings()), [dispatch]);
-
-  const confirm = useCallback(
-    (bookingId) => dispatch(confirmBooking(bookingId)),
+  const create = useCallback(
+    async (bookingData) => {
+      dispatch(createBookingStart());
+      try {
+        const response = await bookingApi.createBooking(bookingData);
+        dispatch(createBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(createBookingFailure(err.message));
+        return null;
+      }
+    },
     [dispatch]
   );
 
-  const assign = useCallback(
-    (bookingId, technicianId) => dispatch(assignTechnician({ bookingId, technicianId })),
-    [dispatch]
-  );
-
-  const cancel = useCallback(
-    (bookingId) => dispatch(cancelBooking(bookingId)),
-    [dispatch]
-  );
-
-  return { active, past, loading, error, loadActive, loadPast, confirm, assign, cancel };
+  return { creating, createError, create };
 }
