@@ -28,7 +28,16 @@ export function useAuth() {
     [dispatch]
   );
 
-  const signOut = useCallback(() => dispatch(logout()), [dispatch]);
+  const signOut = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Best-effort: still clear local session even if the server call fails
+      // (e.g. token already expired) — logout must never strand the user.
+    } finally {
+      dispatch(logout());
+    }
+  }, [dispatch]);
 
   return { user, token, isAuthenticated, loading, error, signIn, signOut };
 }

@@ -23,7 +23,10 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@RequestHeader("Authorization") String token) {
+    public ApiResponse<Void> logout(@RequestHeader("Authorization") String authorizationHeader) {
+        String token = authorizationHeader.startsWith("Bearer ")
+                ? authorizationHeader.substring(7)
+                : authorizationHeader;
         authInternalService.logout(token);
         return ApiResponse.ok(null);
     }
