@@ -3,11 +3,14 @@ package com.fixinh.smt.modules.technician.controller;
 import com.fixinh.smt.common.web.ApiResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
+import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
+import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
 import com.fixinh.smt.modules.technician.service.internal.TechnicianInternalService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/technicians")
@@ -45,5 +48,47 @@ public class TechnicianController {
     public ApiResponse<TechnicianResponse> abort(@PathVariable String technicianId, @PathVariable String bookingId,
                                                    @RequestParam String reason) {
         return ApiResponse.ok(technicianInternalService.abort(technicianId, bookingId, reason));
+    }
+
+    // Periods
+    @PostMapping("/{technicianId}/availability-periods")
+    public ApiResponse<AvailabilityPeriodResponse> createAvailabilityPeriod(
+        @PathVariable String technicianId,
+        @Valid @RequestBody AvailabilityPeriodRequest request
+    ) {
+        return ApiResponse.ok(
+            technicianInternalService.createAvailabilityPeriod(
+                    technicianId,
+                    request
+            )
+        );
+    }
+
+    @GetMapping("/{technicianId}/availability-periods")
+    public ApiResponse<List<AvailabilityPeriodResponse>> listAvailabilityPeriods(
+        @PathVariable String technicianId,
+        @RequestParam(required = false) LocalDate from,
+        @RequestParam(required = false) LocalDate to
+    ) {
+        return ApiResponse.ok(
+            technicianInternalService.listAvailabilityPeriods(
+                technicianId,
+                from,
+                to
+            )
+        );
+    }
+
+    @DeleteMapping("/{technicianId}/availability-periods/{periodId}")
+    public ApiResponse<Void> deleteAvailabilityPeriod(
+        @PathVariable String technicianId,
+        @PathVariable String periodId
+    ) {
+        technicianInternalService.deleteAvailabilityPeriod(
+            technicianId,
+            periodId
+        );
+
+        return ApiResponse.ok(null);
     }
 }
