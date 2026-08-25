@@ -14,7 +14,21 @@ export async function api(endpoint, options = {}) {
     ...options,
   });
 
-  const result = await response.json();
+  // Spring Security's default access-denied response for a missing/expired/invalid JWT
+  // has no body, so response.json() below would throw a confusing "Unexpected end of
+  // JSON input" instead of surfacing the actual problem. Clear the stale token so the
+  // next reload sends the user back to the login page instead of retrying with it.
+  if (response.status === 401 || response.status === 403) {
+    localStorage.removeItem("token");
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(`Request failed (HTTP ${response.status})`);
+  }
 
   if (!response.ok || result.success === false) {
     throw new Error(result.message || "API request failed");

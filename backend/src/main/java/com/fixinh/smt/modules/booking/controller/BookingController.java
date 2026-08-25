@@ -19,6 +19,11 @@ public class BookingController {
         this.bookingInternalService = bookingInternalService;
     }
 
+    @PostMapping
+    public ApiResponse<BookingResponse> create(@Valid @RequestBody BookingRequest request) {
+        return ApiResponse.ok(bookingInternalService.create(request));
+    }
+
     @GetMapping("/active")
     public ApiResponse<List<BookingResponse>> listActive() {
         return ApiResponse.ok(bookingInternalService.listActive());

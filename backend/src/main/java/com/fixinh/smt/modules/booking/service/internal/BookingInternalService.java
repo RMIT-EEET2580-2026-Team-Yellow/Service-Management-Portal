@@ -7,6 +7,9 @@ import java.util.List;
 /** Internal Interface (A.3.1/A.3.2) — consumed only by {@code BookingController}. */
 public interface BookingInternalService {
 
+    /** Receptionist creates a booking for exactly one Repair Service (3.3.S1/S2). */
+    BookingResponse create(BookingRequest request);
+
     List<BookingResponse> listActive();
 
     List<BookingResponse> listPast();
