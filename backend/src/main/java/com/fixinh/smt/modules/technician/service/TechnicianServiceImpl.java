@@ -53,6 +53,18 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         this.staffExternalService = staffExternalService;
     }
 
+    private TechnicianExternalDto toExternalDto(Technician technician) {
+        String fullName = staffExternalService.findById(technician.getStaffId())
+            .map(StaffExternalDto::fullName)
+            .orElse("Unknown technician");
+
+        return new TechnicianExternalDto(
+            technician.getId(),
+            fullName,
+            true
+        );
+    }
+
     @Override
     public AvailabilityPeriodResponse createAvailabilityPeriod(
         String technicianId,
@@ -258,9 +270,39 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
 
     @Override
     public List<TechnicianExternalDto> findAvailable(LocalDate date, LocalTime start, LocalTime end, int durationMinutes) {
-        // TODO Milestone 2: query TechnicianAvailabilityRepository for matching working days/hours,
-        // then filter out technicians with an ACCEPTED/PENDING TechnicianAssignment that overlaps.
-        throw new UnsupportedOperationException("Milestone 2");
+        if (date == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Date is required");
+        }
+
+        if (start == null || end == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Start and end times are required");
+        }
+
+        if (!start.isBefore(end)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Start time must be earlier than end time");
+        }
+
+        if (durationMinutes <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Duration must be greater than 0");
+        }
+
+        long requestedWindowMinutes = java.time.Duration.between(start, end).toMinutes();
+
+        if (requestedWindowMinutes < durationMinutes) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Requested time window is shorter than the required duration");
+        }
+
+        List<TechnicianAvailabilityPeriod> periods = technicianAvailabilityPeriodRepository.findByDateAndActiveTrue(date);
+
+        return periods.stream()
+            .filter(period -> !period.getStartTime().isAfter(start))
+            .filter(period -> !period.getEndTime().isBefore(end))
+            .map(TechnicianAvailabilityPeriod::getTechnicianId)
+            .distinct()
+            .map(technicianRepository::findById)
+            .flatMap(Optional::stream)
+            .map(this::toExternalDto)
+            .toList();
     }
 
     @Override

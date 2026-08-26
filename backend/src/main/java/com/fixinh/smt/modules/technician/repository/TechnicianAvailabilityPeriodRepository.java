@@ -12,14 +12,18 @@ public interface TechnicianAvailabilityPeriodRepository
         extends MongoRepository<TechnicianAvailabilityPeriod, String> {
 
     List<TechnicianAvailabilityPeriod> findByTechnicianIdAndDateOrderByStartTimeAsc(
-            String technicianId,
-            LocalDate date
+        String technicianId,
+        LocalDate date
     );
 
     List<TechnicianAvailabilityPeriod> findByTechnicianIdAndDateBetweenOrderByDateAscStartTimeAsc(
-            String technicianId,
-            LocalDate from,
-            LocalDate to
+        String technicianId,
+        LocalDate from,
+        LocalDate to
+    );
+
+    List<TechnicianAvailabilityPeriod> findByDateAndActiveTrue(
+        LocalDate date
     );
 
     @Query("""
