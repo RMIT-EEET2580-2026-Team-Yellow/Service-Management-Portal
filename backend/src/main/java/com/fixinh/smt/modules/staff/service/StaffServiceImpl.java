@@ -53,15 +53,20 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
     @Override
     public StaffResponse create(StaffRequest request) {
         if (!ValidationUtil.isValidEmail(request.email())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid email format");
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid email format. Must contain exactly one '@', at least one '.' after it, "
+                + "and be under 255 characters. Example: name@example.com");
         }
 
         if (!ValidationUtil.isValidPhoneNumber(request.phoneNumber())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid phone number format. Should have 7-11 digits and starts with 0");
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid phone number format. Should have 7-11 digits and start with 0. Example: 0912345678");
         }
 
         if (!ValidationUtil.isValidPassword(request.password())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid password format. Password must be at least 8 characters, including a digit, an uppercase letter, and a special character");
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid password format. Password must be at least 8 characters, including a digit, "
+                + "an uppercase letter, and a special character. Example: Passw0rd!");
         }
 
         if (!request.password().equals(request.confirmPassword())) {
@@ -69,7 +74,7 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
         }
 
         if (staffRepository.existsByEmail(request.email())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Email already exists");
+            throw new ApiException(HttpStatus.CONFLICT, "Email already exists");
         }
 
         Staff staff = Staff.builder()
@@ -106,6 +111,17 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
     public StaffResponse update(String staffId, StaffRequest request) {
         Staff staff = staffRepository.findById(staffId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
+
+        if (!ValidationUtil.isValidEmail(request.email())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid email format. Must contain exactly one '@', at least one '.' after it, "
+                + "and be under 255 characters. Example: name@example.com");
+        }
+
+        if (!ValidationUtil.isValidPhoneNumber(request.phoneNumber())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid phone number format. Should have 7-11 digits and start with 0. Example: 0912345678");
+        }
 
         staff.setFullName(request.fullName());
         staff.setEmail(request.email());
