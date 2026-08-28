@@ -10,17 +10,21 @@ public final class ValidationUtil {
     }
 
     public static boolean isValidPassword(String password) {
-        // TODO Milestone 2: >=8 chars, 1 digit, 1 special char, 1 uppercase (3.1.M1).
-        throw new UnsupportedOperationException("Milestone 2");
+        return password != null
+            && password.length() >= 8
+            && password.matches(".*[0-9].*")
+            && password.matches(".*[A-Z].*")
+            && password.matches(".*[^A-Za-z0-9].*");
     }
 
     public static boolean isValidEmail(String email) {
-        // TODO Milestone 2: single '@', '.' after '@', <255 chars, no forbidden chars (3.1.M2).
-        throw new UnsupportedOperationException("Milestone 2");
+        return email != null
+            && email.length() < 255
+            && email.matches("[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+" + "@" + "[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+");
     }
 
     public static boolean isValidPhoneNumber(String phoneNumber) {
-        // TODO Milestone 2: 7-11 digits, starts with 0 (3.1.M3).
-        throw new UnsupportedOperationException("Milestone 2");
+        return phoneNumber != null
+            && phoneNumber.matches("0[0-9]{6,10}");
     }
 }
