@@ -6,8 +6,8 @@ backend/*.iml
 # Frontend
 frontend/node_modules/
 frontend/dist/
-frontend/.env
 
 # Common
 .idea/
 .DS_Store
+.env
