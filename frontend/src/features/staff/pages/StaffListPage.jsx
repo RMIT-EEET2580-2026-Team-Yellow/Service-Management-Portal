@@ -1,59 +1,19 @@
-import { useEffect ,useState } from "react";
+import { useEffect, useState } from "react";
 import fetchProvinces from "../services/provinceApi";
+import { useStaff } from "../../../common/hooks/useStaff";
+import { toDisplayStaff } from "../staffHelpers";
 /**
- * MOCK UI ONLY — no backend wired up yet.
- * Static data below stands in for GET /api/v1/staff.
- * Replace MOCK_STAFF with real API data via useStaff() once the Staff
- * backend (3.1.S1-S8) is implemented.
- *
- * READ-ONLY: SMT does not create Staff accounts — SBT creates them and SMT
- * only displays the list here. SMT still exposes POST /api/v1/staff on the
- * backend for SBT to call, but there is no "Create Staff" UI on this side.
+ * SMT is READ-ONLY for Staff — SBT creates Staff accounts, SMT only fetches and
+ * displays the list here via GET /api/v1/staff (3.1.S5-S8). SMT still exposes
+ * POST /api/v1/staff on the backend for SBT to call, but there is no "Create Staff"
+ * UI on this side.
  */
 
 const ROLE_STYLES = {
   Receptionist: "bg-blue-100 text-blue-700",
   Technician: "bg-amber-100 text-amber-700",
+  Admin: "bg-purple-100 text-purple-700",
 };
-
-const MOCK_STAFF = [
-  {
-    id: "#S-0142",
-    name: "Nguyễn Văn A",
-    phone: "0909123321",
-    email: "nguyenvana@fixinh.vn",
-    role: "Technician",
-    province: "Ho Chi Minh City",
-    status: "Active",
-  },
-  {
-    id: "#S-0139",
-    name: "Trần Thị B",
-    phone: "0909123321",
-    email: "tranthib@fixinh.vn",
-    role: "Technician",
-    province: "Ha Noi",
-    status: "Active",
-  },
-  {
-    id: "#S-0108",
-    name: "Thinh Duong",
-    phone: "0909123321",
-    email: "thinh.duong@fixinh.vn",
-    role: "Receptionist",
-    province: "Ho Chi Minh City",
-    status: "Active",
-  },
-  {
-    id: "#S-0095",
-    name: "Lê Văn C",
-    phone: "0909123321",
-    email: "levanc@fixinh.vn",
-    role: "Technician",
-    province: "Da Nang",
-    status: "Active",
-  },
-];
 
 function matchesSearch(staff, query) {
   if (!query.trim()) return true;
@@ -66,6 +26,7 @@ function matchesSearch(staff, query) {
 }
 
 export default function StaffListPage() {
+  const { list, listLoading, listError, loadStaff } = useStaff();
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("");
@@ -79,9 +40,13 @@ export default function StaffListPage() {
 
   useEffect(() => {
     fetchProvinceData();
-  }, []);
+    loadStaff();
+  }, [loadStaff]);
 
-  const filteredStaff = MOCK_STAFF.filter((s) => matchesSearch(s, searchText))
+  const staffList = list.map(toDisplayStaff);
+
+  const filteredStaff = staffList
+    .filter((s) => matchesSearch(s, searchText))
     .filter((s) => !roleFilter || s.role === roleFilter)
     .filter((s) => !provinceFilter || s.province === provinceFilter);
 
@@ -141,7 +106,21 @@ export default function StaffListPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredStaff.length === 0 && (
+              {listLoading && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                    Loading staff…
+                  </td>
+                </tr>
+              )}
+              {!listLoading && listError && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-red-500">
+                    {listError}
+                  </td>
+                </tr>
+              )}
+              {!listLoading && !listError && filteredStaff.length === 0 && (
                 <tr>
                   <td
                     colSpan={7}
@@ -151,7 +130,7 @@ export default function StaffListPage() {
                   </td>
                 </tr>
               )}
-              {filteredStaff.map((s) => (
+              {!listLoading && !listError && filteredStaff.map((s) => (
                 <tr
                   key={s.id}
                   className="border-t border-gray-100 hover:bg-gray-50"
