@@ -11,7 +11,8 @@ public final class StaffMapper {
 
     public static StaffResponse toResponse(Staff staff) {
         return new StaffResponse(staff.getId(), staff.getFullName(), staff.getEmail(), staff.getPhoneNumber(),
-                staff.getRole(), staff.getProvince(), staff.isActive());
+                staff.getRole(), staff.getStreetNumber(), staff.getStreetName(), staff.getWard(),
+                staff.getProvince(), staff.isActive());
     }
 
     public static StaffExternalDto toExternalDto(Staff staff) {

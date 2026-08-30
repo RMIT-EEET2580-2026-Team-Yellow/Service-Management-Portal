@@ -11,6 +11,7 @@ import com.fixinh.smt.modules.staff.mapper.StaffMapper;
 import com.fixinh.smt.modules.staff.repository.StaffRepository;
 import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.staff.service.internal.StaffInternalService;
+import com.fixinh.smt.common.util.ValidationUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -51,30 +52,46 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
     @Override
     public StaffResponse create(StaffRequest request) {
+        if (!ValidationUtil.isValidEmail(request.email())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid email format. Must contain exactly one '@', at least one '.' after it, "
+                + "and be under 255 characters. Example: name@example.com");
+        }
+
+        if (!ValidationUtil.isValidPhoneNumber(request.phoneNumber())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid phone number format. Should have 7-11 digits and start with 0. Example: 0912345678");
+        }
+
+        if (!ValidationUtil.isValidPassword(request.password())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid password format. Password must be at least 8 characters, including a digit, "
+                + "an uppercase letter, and a special character. Example: Passw0rd!");
+        }
+
         if (!request.password().equals(request.confirmPassword())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Password and confirm password do not match");
         }
+
         if (staffRepository.existsByEmail(request.email())) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already in use");
+            throw new ApiException(HttpStatus.CONFLICT, "Email already exists");
         }
 
         Staff staff = Staff.builder()
-                .fullName(request.fullName())
-                .email(request.email())
-                .phoneNumber(request.phoneNumber())
-                .role(request.role())
-                .streetNumber(request.streetNumber())
-                .streetName(request.streetName())
-                .ward(request.ward())
-                .province(request.province())
-                .active(true)
-                .build();
+            .fullName(request.fullName())
+            .email(request.email())
+            .phoneNumber(request.phoneNumber())
+            .role(request.role())
+            .streetNumber(request.streetNumber())
+            .streetName(request.streetName())
+            .ward(request.ward())
+            .province(request.province())
+            .active(true)
+            .build();
+
         Staff saved = staffRepository.save(staff);
-
-        // Create the linked login credential (User) row — Staff module never touches
-        // UserRepository directly (A.2.4), only through AuthExternalService.
         authExternalService.createCredentials(saved.getId(), saved.getEmail(), request.password(), saved.getRole());
-
+        
         return StaffMapper.toResponse(saved);
     }
 
@@ -94,6 +111,17 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
     public StaffResponse update(String staffId, StaffRequest request) {
         Staff staff = staffRepository.findById(staffId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
+
+        if (!ValidationUtil.isValidEmail(request.email())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid email format. Must contain exactly one '@', at least one '.' after it, "
+                + "and be under 255 characters. Example: name@example.com");
+        }
+
+        if (!ValidationUtil.isValidPhoneNumber(request.phoneNumber())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Invalid phone number format. Should have 7-11 digits and start with 0. Example: 0912345678");
+        }
 
         staff.setFullName(request.fullName());
         staff.setEmail(request.email());

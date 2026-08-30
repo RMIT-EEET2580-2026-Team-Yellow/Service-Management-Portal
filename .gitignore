@@ -11,3 +11,4 @@ frontend/.env
 # Common
 .idea/
 .DS_Store
+.env
