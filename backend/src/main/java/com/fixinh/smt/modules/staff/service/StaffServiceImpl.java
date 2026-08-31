@@ -38,7 +38,7 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
     @Override
     public Optional<StaffExternalDto> findById(String staffId) {
-        throw new UnsupportedOperationException("Milestone 2");
+        return staffRepository.findById(staffId).map(StaffMapper::toExternalDto);
     }
 
     @Override

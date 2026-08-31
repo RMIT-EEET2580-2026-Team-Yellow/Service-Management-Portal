@@ -4,6 +4,7 @@
 // module (A.2.4) — BookingServiceImpl no longer injects that repository directly.
 package com.fixinh.smt.modules.technician.service;
 
+import com.fixinh.smt.common.security.RoleConfig;
 import com.fixinh.smt.modules.staff.dto.external.StaffExternalDto;
 import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
@@ -31,6 +32,8 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.time.DayOfWeek;
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 public class TechnicianServiceImpl implements TechnicianExternalService, TechnicianInternalService {
@@ -352,8 +355,120 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
 
     @Override
     public TechnicianResponse setSchedule(TechnicianScheduleRequest request) {
-        // TODO Milestone 2: upsert into TechnicianAvailabilityRepository by technicianId.
-        throw new UnsupportedOperationException("Milestone 2");
+        if (request.staffId() == null || request.staffId().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "staffId is required");
+        }
+
+        StaffExternalDto staff = staffExternalService.findById(request.staffId())
+            .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + request.staffId()));
+
+        if (staff.role() != RoleConfig.TECHNICIAN) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Only TECHNICIAN role can have a schedule");
+        }
+
+        List<String> normalWorkingDays = validateWorkingDays(request.workingDays());
+        validateDailyHours(request.dailyStart(), request.dailyEnd());
+
+        Technician technician = technicianRepository.findByStaffId(request.staffId())
+            .orElseGet(() -> technicianRepository.save(Technician.builder().staffId(request.staffId()).build()));
+
+        TechnicianAvailability availability = technicianAvailabilityRepository
+            .findByTechnicianId(technician.getId())
+            .orElseGet(() -> TechnicianAvailability.builder()
+                .technicianId(technician.getId())
+                .currentlyAvailable(true)
+                .build());
+
+        availability.setWorkingDays(normalWorkingDays);
+        availability.setDailyStart(request.dailyStart());
+        availability.setDailyEnd(request.dailyEnd());
+
+        TechnicianAvailability saved = technicianAvailabilityRepository.save(availability);
+
+        return toTechnicianResponse(technician, saved, staff.fullName());
+    }
+
+    private List<String> validateWorkingDays(List<String> workingDays) {
+        if (workingDays == null || workingDays.size() != 5) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "workingDays must contain exactly 5 days"
+            );
+        }
+
+        List<String> normalized = workingDays.stream()
+            .map(day -> day == null ? null : day.trim().toUpperCase())
+            .toList();
+
+        Set<String> validCodes = Set.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
+
+        if (normalized.stream().anyMatch(day -> day == null || !validCodes.contains(day))) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "workingDays must only contain MON, TUE, WED, THU, FRI, SAT, SUN"
+            );
+        }
+
+        if (new HashSet<>(normalized).size() != normalized.size()) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "workingDays must not contain duplicates"
+            );
+        }
+
+        List<String> dayOrder = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
+        int firstIndex = dayOrder.indexOf(normalized.get(0));
+
+        for (int i = 1; i < normalized.size(); i++) {
+            int expectedIndex = (firstIndex + i) % dayOrder.size();
+            if (dayOrder.indexOf(normalized.get(i)) != expectedIndex) {
+                throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "workingDays must be 5 consecutive days, e.g. [\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]"
+                );
+            }
+        }
+
+        return normalized;
+    }
+
+    private void validateDailyHours(LocalTime dailyStart, LocalTime dailyEnd) {
+        if (dailyStart == null || dailyEnd == null) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "dailyStart and dailyEnd are required"
+            );
+        }
+
+        if (!dailyStart.isBefore(dailyEnd)) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "dailyStart must be earlier than dailyEnd"
+            );
+        }
+
+        if (dailyStart.isBefore(LocalTime.of(8, 0)) || dailyEnd.isAfter(LocalTime.of(20, 0))) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "Working hours must be within 08:00-20:00"
+            );
+        }
+    }
+
+    private TechnicianResponse toTechnicianResponse(
+        Technician technician,
+        TechnicianAvailability availability,
+        String fullName
+    ) {
+        return new TechnicianResponse(
+            technician.getId(),
+            technician.getStaffId(),
+            fullName,
+            availability.getWorkingDays(),
+            availability.getDailyStart(),
+            availability.getDailyEnd(),
+            availability.isCurrentlyAvailable()
+        );
     }
 
     @Override
