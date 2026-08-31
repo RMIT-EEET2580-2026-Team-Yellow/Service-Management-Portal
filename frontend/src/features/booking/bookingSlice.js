@@ -12,6 +12,10 @@ const bookingSlice = createSlice({
     listLoading: false,
     listError: null,
 
+    filtered: [],
+    filterLoading: false,
+    filterError: null,
+
     confirming: false,
     confirmError: null,
   },
@@ -62,6 +66,19 @@ const bookingSlice = createSlice({
       state.confirming = false;
       state.confirmError = action.payload;
     },
+
+    fetchFilteredStart(state) {
+      state.filterLoading = true;
+      state.filterError = null;
+    },
+    fetchFilteredSuccess(state, action) {
+      state.filterLoading = false;
+      state.filtered = action.payload;
+    },
+    fetchFilteredFailure(state, action) {
+      state.filterLoading = false;
+      state.filterError = action.payload;
+    },
   },
 });
 
@@ -76,5 +93,8 @@ export const {
   confirmBookingStart,
   confirmBookingSuccess,
   confirmBookingFailure,
+  fetchFilteredStart,
+  fetchFilteredSuccess,
+  fetchFilteredFailure,
 } = bookingSlice.actions;
 export default bookingSlice.reducer;

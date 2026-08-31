@@ -67,6 +67,20 @@ export function matchesSearch(booking, query) {
   return false;
 }
 
+export const ACTIVE_STATUSES = ["Created", "Confirmed", "Scheduled", "Working"];
+
+export function dateRangeToFrom(range) {
+  const days = { last7: 7, last30: 30 }[range];
+  if (!days) return undefined;
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+  return from.toISOString().slice(0, 10);
+}
+
+export function sortOrderToParam(sortOrder) {
+  return sortOrder === "oldest" ? "asc" : "desc";
+}
+
 export function matchesDateRange(booking, range) {
   if (!range) return true;
   const days = { last7: 7, last30: 30 }[range];

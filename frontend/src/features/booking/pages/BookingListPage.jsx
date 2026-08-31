@@ -5,20 +5,32 @@ import AssignTechnicianModal from "../components/AssignTechnicianModal";
 import CancelBookingModal from "../components/CancelBookingModal";
 import BookingTable from "../components/BookingTable";
 import BookingDetailPanel from "../components/BookingDetailPanel";
-import { matchesSearch, matchesDateRange, toDisplayBooking } from "../bookingHelpers";
+import {
+  matchesSearch,
+  toDisplayBooking,
+  ACTIVE_STATUSES,
+  dateRangeToFrom,
+  sortOrderToParam,
+} from "../bookingHelpers";
 import { useBookings } from "../../../common/hooks/useBookings";
 
-/**
- * Active/Past bookings are fetched from GET /api/v1/bookings/active|past (3.3.S3-S5, M2).
- * Confirm is wired to PATCH .../confirm (3.3.S6). Assign/Cancel are still MOCK ONLY —
- * those backend endpoints are still Milestone 2 stubs.
- * Pure filter helpers live in bookingHelpers.js, JSX for the two columns lives
- * in components/BookingTable.jsx and components/BookingDetailPanel.jsx.
- */
 export default function BookingListPage() {
   const navigate = useNavigate();
-  const { active, past, listLoading, listError, loadActive, loadPast, confirm, confirming, confirmError } =
-    useBookings();
+  const {
+    active,
+    past,
+    listLoading,
+    listError,
+    loadActive,
+    loadPast,
+    filtered,
+    filterLoading,
+    filterError,
+    loadFiltered,
+    confirm,
+    confirming,
+    confirmError,
+  } = useBookings();
   const [tab, setTab] = useState("active");
   const [searchText, setSearchText] = useState("");
   const [confirmingBooking, setConfirmingBooking] = useState(null);
@@ -35,21 +47,26 @@ export default function BookingListPage() {
     loadPast();
   }, [loadActive, loadPast]);
 
+  useEffect(() => {
+    if (tab !== "active") return;
+    loadFiltered({
+      serviceType: serviceTypeFilter,
+      from: dateRangeToFrom(dateRangeFilter),
+      sort: sortOrderToParam(sortOrder),
+    });
+  }, [tab, serviceTypeFilter, dateRangeFilter, sortOrder, loadFiltered]);
+
   const activeDisplay = useMemo(() => active.map(toDisplayBooking), [active]);
   const pastDisplay = useMemo(() => past.map(toDisplayBooking), [past]);
+  const filteredDisplay = useMemo(() => filtered.map(toDisplayBooking), [filtered]);
 
   const list = tab === "active" ? activeDisplay : pastDisplay;
+  const baseList =
+    tab === "active" ? filteredDisplay.filter((b) => ACTIVE_STATUSES.includes(b.status)) : pastDisplay;
 
-  const filteredList = list
+  const filteredList = baseList
     .filter((b) => matchesSearch(b, searchText))
-    .filter((b) => !serviceTypeFilter || b.service === serviceTypeFilter)
-    .filter((b) => !statusFilter || b.status === statusFilter)
-    .filter((b) => matchesDateRange(b, dateRangeFilter))
-    .sort((a, b) =>
-      sortOrder === "newest"
-        ? b.creationDateISO.localeCompare(a.creationDateISO)
-        : a.creationDateISO.localeCompare(b.creationDateISO)
-    );
+    .filter((b) => !statusFilter || b.status === statusFilter);
 
   const selected = filteredList.find((b) => b.id === selectedId) || filteredList[0];
 
@@ -86,14 +103,14 @@ export default function BookingListPage() {
         </div>
       </div>
 
-      {listError && (
+      {(listError || (tab === "active" && filterError)) && (
         <div className="mx-8 mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5" role="alert">
-          {listError}
+          {listError || filterError}
         </div>
       )}
 
       <div className="flex gap-6 p-8">
-        {listLoading && list.length === 0 ? (
+        {(tab === "active" ? filterLoading && filteredList.length === 0 : listLoading && list.length === 0) ? (
           <div className="flex-1 text-sm text-gray-400 py-12 text-center">Loading bookings…</div>
         ) : (
           <>
