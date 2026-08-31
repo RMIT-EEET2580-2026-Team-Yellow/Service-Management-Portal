@@ -20,13 +20,27 @@ import {
   confirmBookingStart,
   confirmBookingSuccess,
   confirmBookingFailure,
+  fetchFilteredStart,
+  fetchFilteredSuccess,
+  fetchFilteredFailure,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
 export function useBookings() {
   const dispatch = useDispatch();
-  const { creating, createError, active, past, listLoading, listError, confirming, confirmError } =
-    useSelector((state) => state.booking);
+  const {
+    creating,
+    createError,
+    active,
+    past,
+    listLoading,
+    listError,
+    filtered,
+    filterLoading,
+    filterError,
+    confirming,
+    confirmError,
+  } = useSelector((state) => state.booking);
 
   const create = useCallback(
     async (bookingData) => {
@@ -78,6 +92,19 @@ export function useBookings() {
     [dispatch]
   );
 
+  const loadFiltered = useCallback(
+    async (params) => {
+      dispatch(fetchFilteredStart());
+      try {
+        const response = await bookingApi.fetchFilteredBookings(params);
+        dispatch(fetchFilteredSuccess(response.data));
+      } catch (err) {
+        dispatch(fetchFilteredFailure(err.message));
+      }
+    },
+    [dispatch]
+  );
+
   return {
     creating,
     createError,
@@ -88,6 +115,10 @@ export function useBookings() {
     listError,
     loadActive,
     loadPast,
+    filtered,
+    filterLoading,
+    filterError,
+    loadFiltered,
     confirming,
     confirmError,
     confirm,
