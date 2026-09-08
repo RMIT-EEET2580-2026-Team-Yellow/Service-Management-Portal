@@ -9,6 +9,7 @@ const navItems = [
   { icon: "calendar", label: "Bookings", path: "/bookings" },
   { icon: "users", label: "Staff", path: "/staff" },
   { icon: "wrench", label: "Technician", path: "/technician" },
+  { icon: "clock", label: "Schedule", path: "/technician/schedule" },
   { icon: "chart", label: "Statistics", path: "/statistics" },
   { icon: "bell", label: "Notifications", path: "/notifications" },
 ];

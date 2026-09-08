@@ -23,11 +23,16 @@ import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
 import com.fixinh.smt.modules.technician.entity.TechnicianAvailabilityPeriod;
 import com.fixinh.smt.modules.technician.repository.TechnicianAvailabilityPeriodRepository;
+import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
+import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
+import com.fixinh.smt.modules.technician.entity.TechnicianScheduleChangeRequest;
+import com.fixinh.smt.modules.technician.repository.TechnicianScheduleChangeRequestRepository;
 import com.fixinh.smt.common.exception.ApiException;
 import com.fixinh.smt.common.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,20 +43,28 @@ import java.util.Set;
 @Service
 public class TechnicianServiceImpl implements TechnicianExternalService, TechnicianInternalService {
 
+    /** A Technician-submitted schedule change request always uses the full 08:00-20:00 shift —
+     *  the Technician only picks which 5 of 7 days they work, not custom hours. */
+    private static final LocalTime FIXED_DAILY_START = LocalTime.of(8, 0);
+    private static final LocalTime FIXED_DAILY_END = LocalTime.of(20, 0);
+
     private final TechnicianRepository technicianRepository;
     private final TechnicianAvailabilityRepository technicianAvailabilityRepository;
     private final TechnicianAvailabilityPeriodRepository technicianAvailabilityPeriodRepository;
+    private final TechnicianScheduleChangeRequestRepository technicianScheduleChangeRequestRepository;
     private final TechnicianAssignmentRepository technicianAssignmentRepository;
     private final StaffExternalService staffExternalService;
 
     public TechnicianServiceImpl(TechnicianRepository technicianRepository,
         TechnicianAvailabilityRepository technicianAvailabilityRepository,
         TechnicianAvailabilityPeriodRepository technicianAvailabilityPeriodRepository,
+        TechnicianScheduleChangeRequestRepository technicianScheduleChangeRequestRepository,
         TechnicianAssignmentRepository technicianAssignmentRepository,
         StaffExternalService staffExternalService) {
         this.technicianRepository = technicianRepository;
         this.technicianAvailabilityRepository = technicianAvailabilityRepository;
         this.technicianAvailabilityPeriodRepository = technicianAvailabilityPeriodRepository;
+        this.technicianScheduleChangeRequestRepository = technicianScheduleChangeRequestRepository;
         this.technicianAssignmentRepository = technicianAssignmentRepository;
         this.staffExternalService = staffExternalService;
     }
@@ -388,7 +401,46 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         return toTechnicianResponse(technician, saved, staff.fullName());
     }
 
+    @Override
+    public TechnicianResponse getByStaffId(String staffId) {
+        StaffExternalDto staff = staffExternalService.findById(staffId)
+            .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
+
+        Technician technician = technicianRepository.findByStaffId(staffId)
+            .orElseThrow(() -> new ResourceNotFoundException("Technician not found for staff: " + staffId));
+
+        TechnicianAvailability availability = technicianAvailabilityRepository
+            .findByTechnicianId(technician.getId())
+            .orElseThrow(() -> new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "Technician does not have a base schedule"
+            ));
+
+        return toTechnicianResponse(technician, availability, staff.fullName());
+    }
+
     private List<String> validateWorkingDays(List<String> workingDays) {
+        List<String> normalized = validateFiveUniqueDays(workingDays);
+
+        List<String> dayOrder = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
+        int firstIndex = dayOrder.indexOf(normalized.get(0));
+
+        for (int i = 1; i < normalized.size(); i++) {
+            int expectedIndex = (firstIndex + i) % dayOrder.size();
+            if (dayOrder.indexOf(normalized.get(i)) != expectedIndex) {
+                throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "workingDays must be 5 consecutive days, e.g. [\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]"
+                );
+            }
+        }
+
+        return normalized;
+    }
+
+    /** Exactly 5 distinct valid day codes — no consecutiveness requirement (used by the
+     *  Technician-submitted schedule change request, which lets a Technician pick any 2 days off). */
+    private List<String> validateFiveUniqueDays(List<String> workingDays) {
         if (workingDays == null || workingDays.size() != 5) {
             throw new ApiException(
                 HttpStatus.BAD_REQUEST,
@@ -414,19 +466,6 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
                 HttpStatus.BAD_REQUEST,
                 "workingDays must not contain duplicates"
             );
-        }
-
-        List<String> dayOrder = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
-        int firstIndex = dayOrder.indexOf(normalized.get(0));
-
-        for (int i = 1; i < normalized.size(); i++) {
-            int expectedIndex = (firstIndex + i) % dayOrder.size();
-            if (dayOrder.indexOf(normalized.get(i)) != expectedIndex) {
-                throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "workingDays must be 5 consecutive days, e.g. [\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]"
-                );
-            }
         }
 
         return normalized;
@@ -468,6 +507,142 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
             availability.getDailyStart(),
             availability.getDailyEnd(),
             availability.isCurrentlyAvailable()
+        );
+    }
+
+    // ---- Schedule change requests (Technician proposes, Admin approves/rejects) ----
+
+    @Override
+    public ScheduleChangeResponse submitScheduleChangeRequest(
+        String technicianId,
+        ScheduleChangeRequestDto request
+    ) {
+        technicianRepository.findById(technicianId)
+            .orElseThrow(() -> new ResourceNotFoundException("Technician not found: " + technicianId));
+
+        List<String> normalWorkingDays = validateFiveUniqueDays(request.workingDays());
+
+        technicianScheduleChangeRequestRepository.findByTechnicianIdAndStatus(technicianId, "PENDING")
+            .ifPresent(existing -> {
+                throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "A schedule change request is already pending approval"
+                );
+            });
+
+        TechnicianScheduleChangeRequest saved = technicianScheduleChangeRequestRepository.save(
+            TechnicianScheduleChangeRequest.builder()
+                .technicianId(technicianId)
+                .requestedWorkingDays(normalWorkingDays)
+                .requestedDailyStart(FIXED_DAILY_START)
+                .requestedDailyEnd(FIXED_DAILY_END)
+                .build()
+        );
+
+        return toScheduleChangeResponse(saved);
+    }
+
+    @Override
+    public List<ScheduleChangeResponse> listScheduleChangeRequests(String technicianId) {
+        technicianRepository.findById(technicianId)
+            .orElseThrow(() -> new ResourceNotFoundException("Technician not found: " + technicianId));
+
+        return technicianScheduleChangeRequestRepository
+            .findByTechnicianIdOrderByRequestedAtDesc(technicianId).stream()
+            .map(this::toScheduleChangeResponse)
+            .toList();
+    }
+
+    @Override
+    public List<ScheduleChangeResponse> listPendingScheduleChangeRequests() {
+        return technicianScheduleChangeRequestRepository
+            .findByStatusOrderByRequestedAtAsc("PENDING").stream()
+            .map(this::toScheduleChangeResponse)
+            .toList();
+    }
+
+    @Override
+    public ScheduleChangeResponse approveScheduleChangeRequest(String requestId) {
+        TechnicianScheduleChangeRequest scheduleRequest = findPendingScheduleChangeRequest(requestId);
+
+        Technician technician = technicianRepository.findById(scheduleRequest.getTechnicianId())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Technician not found: " + scheduleRequest.getTechnicianId()
+            ));
+
+        TechnicianAvailability availability = technicianAvailabilityRepository
+            .findByTechnicianId(technician.getId())
+            .orElseGet(() -> TechnicianAvailability.builder()
+                .technicianId(technician.getId())
+                .currentlyAvailable(true)
+                .build());
+
+        availability.setWorkingDays(scheduleRequest.getRequestedWorkingDays());
+        availability.setDailyStart(scheduleRequest.getRequestedDailyStart());
+        availability.setDailyEnd(scheduleRequest.getRequestedDailyEnd());
+        technicianAvailabilityRepository.save(availability);
+
+        scheduleRequest.setStatus("APPROVED");
+        scheduleRequest.setRespondedAt(LocalDateTime.now());
+        TechnicianScheduleChangeRequest saved = technicianScheduleChangeRequestRepository.save(scheduleRequest);
+
+        return toScheduleChangeResponse(saved);
+    }
+
+    @Override
+    public ScheduleChangeResponse rejectScheduleChangeRequest(String requestId, String reason) {
+        TechnicianScheduleChangeRequest scheduleRequest = findPendingScheduleChangeRequest(requestId);
+
+        scheduleRequest.setStatus("REJECTED");
+        scheduleRequest.setRejectReason(reason);
+        scheduleRequest.setRespondedAt(LocalDateTime.now());
+        TechnicianScheduleChangeRequest saved = technicianScheduleChangeRequestRepository.save(scheduleRequest);
+
+        return toScheduleChangeResponse(saved);
+    }
+
+    private TechnicianScheduleChangeRequest findPendingScheduleChangeRequest(String requestId) {
+        TechnicianScheduleChangeRequest scheduleRequest = technicianScheduleChangeRequestRepository
+            .findById(requestId)
+            .orElseThrow(() -> new ResourceNotFoundException("Schedule change request not found: " + requestId));
+
+        if (!"PENDING".equals(scheduleRequest.getStatus())) {
+            throw new ApiException(
+                HttpStatus.CONFLICT,
+                "Schedule change request has already been " + scheduleRequest.getStatus().toLowerCase()
+            );
+        }
+
+        return scheduleRequest;
+    }
+
+    private ScheduleChangeResponse toScheduleChangeResponse(TechnicianScheduleChangeRequest request) {
+        Technician technician = technicianRepository.findById(request.getTechnicianId()).orElse(null);
+
+        String fullName = technician == null
+            ? "Unknown technician"
+            : staffExternalService.findById(technician.getStaffId())
+                .map(StaffExternalDto::fullName)
+                .orElse("Unknown technician");
+
+        TechnicianAvailability currentAvailability = technician == null
+            ? null
+            : technicianAvailabilityRepository.findByTechnicianId(technician.getId()).orElse(null);
+
+        return new ScheduleChangeResponse(
+            request.getId(),
+            request.getTechnicianId(),
+            fullName,
+            currentAvailability == null ? null : currentAvailability.getWorkingDays(),
+            currentAvailability == null ? null : currentAvailability.getDailyStart(),
+            currentAvailability == null ? null : currentAvailability.getDailyEnd(),
+            request.getRequestedWorkingDays(),
+            request.getRequestedDailyStart(),
+            request.getRequestedDailyEnd(),
+            request.getStatus(),
+            request.getRequestedAt(),
+            request.getRespondedAt(),
+            request.getRejectReason()
         );
     }
 
