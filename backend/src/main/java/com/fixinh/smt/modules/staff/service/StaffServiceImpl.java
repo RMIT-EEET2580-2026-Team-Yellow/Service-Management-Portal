@@ -44,7 +44,9 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
     @Override
     public Optional<StaffExternalDto> findById(String staffId) {
-        return staffRepository.findById(staffId).map(StaffMapper::toExternalDto);
+        return staffShardRepository.findByIdWithRegion(staffId)
+                .map(Map.Entry::getValue)
+                .map(StaffMapper::toExternalDto);
     }
 
     @Override
