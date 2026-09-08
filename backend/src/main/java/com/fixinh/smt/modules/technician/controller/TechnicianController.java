@@ -1,6 +1,7 @@
 package com.fixinh.smt.modules.technician.controller;
 
 import com.fixinh.smt.common.web.ApiResponse;
+import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
@@ -28,7 +29,7 @@ public class TechnicianController {
     }
 
     @GetMapping("/{technicianId}/bookings")
-    public ApiResponse<List<TechnicianResponse>> myBookings(@PathVariable String technicianId) {
+    public ApiResponse<List<BookingExternalDto>> myBookings(@PathVariable String technicianId) {
         return ApiResponse.ok(technicianInternalService.myBookings(technicianId));
     }
 
