@@ -20,4 +20,10 @@ public class ProvinceService {
     public List<Province> getProvincesByRegion(String region) {
         return repository.findByRegion(region);
     }
+
+    public String getRegionForProvince(String name) {
+        return repository.findByNameIgnoreCase(name)
+                .map(Province::getRegion)
+                .orElse(null);
+    }
 }
