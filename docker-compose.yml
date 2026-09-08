@@ -16,6 +16,8 @@ services:
     environment:
       - MONGO_HOST=mongo
       - MONGO_URI
+      - MONGO_URI_NORTHERN
+      - MONGO_URI_SOUTHERN
     depends_on:
       - mongo
 
