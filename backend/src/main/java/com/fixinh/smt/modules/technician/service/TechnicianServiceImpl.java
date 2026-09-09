@@ -314,6 +314,11 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
             .toList();
     }
 
+    @Override 
+    public List<TechnicianExternalDto> findAvailableTechnicians(LocalDate date, LocalTime start, LocalTime end, int durationMinutes) {
+        return findAvailable(date, start, end, durationMinutes);
+    }
+
     @Override
     public boolean acceptAssignment(String technicianId, String bookingId) {
         // TODO Milestone 2: find the TechnicianAssignment row for (bookingId, technicianId),

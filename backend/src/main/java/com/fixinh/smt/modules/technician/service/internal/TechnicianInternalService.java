@@ -25,6 +25,10 @@ public interface TechnicianInternalService {
 
     TechnicianResponse abort(String technicianId, String bookingId, String reason);
 
+    List<TechnicianExternalDto> findAvailableTechnicians(
+        LocalDate date, LocalTime start, LocalTime end, int durationMinutes
+    );
+
     // Periods
     AvailabilityPeriodResponse createAvailabilityPeriod(
         String technicianId,
