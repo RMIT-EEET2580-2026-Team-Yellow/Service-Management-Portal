@@ -1,19 +1,22 @@
 import { useState } from "react";
 
 /**
- * MOCK UI ONLY — no backend wired up yet (3.3.M1).
- * Real version calls POST /api/bookings/{id}/cancel (creates a new
- * BookingCancellation record, same pattern as /assign — see SMP API for UI
- * Mock.pdf). Status transition rule: Created/Confirmed/Scheduled → Cancelled
- * by Customer; Working → Terminated by Customer.
+ * Wired to PATCH /api/v1/bookings/{id}/cancel (3.3.M1). Status transition rule:
+ * Created/Confirmed/Scheduled → Cancelled by Customer; Working → Terminated by Customer.
+ * Evidence image upload isn't wired yet — no upload endpoint exists on the backend —
+ * so evidenceImageUrls is always sent as an empty list for now.
  */
-export default function CancelBookingModal({ booking, onBack, onConfirm }) {
+export default function CancelBookingModal({ booking, onBack, onConfirm, cancelling, cancelError }) {
   const [reason, setReason] = useState("");
 
   if (!booking) return null;
 
   const targetStatus =
     booking.status === "Working" ? "Terminated by Customer" : "Cancelled by Customer";
+
+  function handleConfirm() {
+    onConfirm(reason, targetStatus);
+  }
 
   return (
     <div className="absolute inset-0 bg-[#141632]/40 flex items-center justify-center z-10">
@@ -26,6 +29,15 @@ export default function CancelBookingModal({ booking, onBack, onConfirm }) {
         </div>
 
         <div className="px-6 py-5">
+          {cancelError && (
+            <p
+              className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 mb-4"
+              role="alert"
+            >
+              {cancelError}
+            </p>
+          )}
+
           <div className="bg-amber-50 text-amber-700 text-[11.5px] rounded-lg px-3 py-2.5 mb-4">
             ⚠ Status will change to <b>"{targetStatus}"</b> (current status: {booking.status})
           </div>
@@ -61,11 +73,11 @@ export default function CancelBookingModal({ booking, onBack, onConfirm }) {
             Back
           </button>
           <button
-            disabled={!reason.trim()}
-            onClick={() => onConfirm(reason, targetStatus)}
+            disabled={!reason.trim() || cancelling}
+            onClick={handleConfirm}
             className="text-sm font-bold text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg px-4 py-2.5"
           >
-            Confirm Cancel
+            {cancelling ? "Cancelling…" : "Confirm Cancel"}
           </button>
         </div>
       </div>
