@@ -34,3 +34,13 @@ export function cancelBooking(bookingId, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+/** Service Tier — talks to GET /api/v1/bookings/filter (3.3.M10).*/
+export function fetchFilteredBookings({ serviceType, from, sort } = {}) {
+  const params = new URLSearchParams();
+  if (serviceType) params.set("serviceType", serviceType);
+  if (from) params.set("from", from);
+  if (sort) params.set("sort", sort);
+  const query = params.toString();
+  return api(`${API_ROUTES.BOOKINGS}/filter${query ? `?${query}` : ""}`);
+}
