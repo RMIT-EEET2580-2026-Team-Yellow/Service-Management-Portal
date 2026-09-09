@@ -4,8 +4,8 @@
 // Page components (BookingListPage, BookingCreatePage) must not call
 // useSelector/useDispatch directly — they only call this hook.
 //
-// create()/loadActive()/loadPast()/confirm() are wired up (3.3.S1-S6, M2) —
-// assign/cancel are still Milestone 2 stubs on the backend (BookingServiceImpl).
+// create()/loadActive()/loadPast()/confirm()/cancel() are wired up (3.3.S1-S6, M1-M2) —
+// assign is still a Milestone 2 stub on the backend (BookingServiceImpl).
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,6 +20,9 @@ import {
   confirmBookingStart,
   confirmBookingSuccess,
   confirmBookingFailure,
+  cancelBookingStart,
+  cancelBookingSuccess,
+  cancelBookingFailure,
   fetchFilteredStart,
   fetchFilteredSuccess,
   fetchFilteredFailure,
@@ -40,6 +43,8 @@ export function useBookings() {
     filterError,
     confirming,
     confirmError,
+    cancelling,
+    cancelError,
   } = useSelector((state) => state.booking);
 
   const create = useCallback(
@@ -92,6 +97,21 @@ export function useBookings() {
     [dispatch]
   );
 
+  const cancel = useCallback(
+    async (bookingId, payload) => {
+      dispatch(cancelBookingStart());
+      try {
+        const response = await bookingApi.cancelBooking(bookingId, payload);
+        dispatch(cancelBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(cancelBookingFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
   const loadFiltered = useCallback(
     async (params) => {
       dispatch(fetchFilteredStart());
@@ -122,5 +142,8 @@ export function useBookings() {
     confirming,
     confirmError,
     confirm,
+    cancelling,
+    cancelError,
+    cancel,
   };
 }
