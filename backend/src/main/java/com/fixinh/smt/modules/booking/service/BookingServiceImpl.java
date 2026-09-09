@@ -264,8 +264,33 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public BookingResponse cancel(String bookingId, CancelBookingRequest request) {
-        // TODO Milestone 2: 3.3.M1 status transition rules (Created/Confirmed/Scheduled -> Cancelled
-        // by Customer; Working -> Terminated by Customer), then notify (3.3.U2).
-        throw new UnsupportedOperationException("Milestone 2");
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!StringUtils.hasText(request.reason())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "reason is required to cancel a booking.");
+        }
+
+        String newStatus;
+        switch (booking.getStatus()) {
+            case "Created", "Confirmed", "Scheduled" -> newStatus = "Cancelled by Customer";
+            case "Working" -> {
+                // 3.3.M1 — work already started, evidence images are mandatory.
+                if (request.evidenceImageUrls() == null || request.evidenceImageUrls().isEmpty()) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "evidenceImageUrls is required to terminate a booking that is already \"Working\".");
+                }
+
+                newStatus = "Terminated by Customer";
+            }
+
+            default -> throw new ApiException(HttpStatus.BAD_REQUEST, "A booking with status \"" + booking.getStatus() + "\" cannot be cancelled.");
+        }
+
+        booking.setStatus(newStatus);
+        booking.setCancelReason(request.reason());
+        booking.setCancelEvidenceImageUrls(request.evidenceImageUrls());
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 }
