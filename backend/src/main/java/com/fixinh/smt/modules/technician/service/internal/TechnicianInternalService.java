@@ -6,6 +6,8 @@ import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
+import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
+import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
 
 import java.util.List;
 import java.time.LocalDate;
@@ -16,7 +18,9 @@ public interface TechnicianInternalService {
 
     TechnicianResponse setSchedule(TechnicianScheduleRequest request);
 
-    List<BookingExternalDto> myBookings(String technicianId);
+    TechnicianResponse getByStaffId(String staffId);
+
+    List<TechnicianResponse> myBookings(String technicianId);
 
     TechnicianResponse startWork(String technicianId, String bookingId);
 
@@ -45,4 +49,18 @@ public interface TechnicianInternalService {
         String technicianId,
         String periodId
     );
+
+    // Schedule change requests (Technician proposes, Admin approves/rejects)
+    ScheduleChangeResponse submitScheduleChangeRequest(
+        String technicianId,
+        ScheduleChangeRequestDto request
+    );
+
+    List<ScheduleChangeResponse> listScheduleChangeRequests(String technicianId);
+
+    List<ScheduleChangeResponse> listPendingScheduleChangeRequests();
+
+    ScheduleChangeResponse approveScheduleChangeRequest(String requestId);
+
+    ScheduleChangeResponse rejectScheduleChangeRequest(String requestId, String reason);
 }

@@ -6,7 +6,6 @@ import CancelBookingModal from "../components/CancelBookingModal";
 import BookingTable from "../components/BookingTable";
 import BookingDetailPanel from "../components/BookingDetailPanel";
 import {
-  matchesSearch,
   toDisplayBooking,
   ACTIVE_STATUSES,
   dateRangeToFrom,
@@ -17,8 +16,10 @@ import { useBookings } from "../../../common/hooks/useBookings";
 /**
  * Active/Past bookings are fetched from GET /api/v1/bookings/active|past (3.3.S3-S5, M2).
  * Confirm is wired to PATCH .../confirm (3.3.S6) and Cancel to PATCH .../cancel (3.3.M1).
- * Active tab is further filtered via GET .../filter (3.3.M10). Assign is still MOCK ONLY —
- * that backend endpoint is still a Milestone 2 stub.
+ * Active tab is further filtered via GET .../filter (3.3.M10); the search box hits
+ * GET .../search (3.3.M9) instead, once there's non-blank text — the two are mutually
+ * exclusive, not combined. Assign is still MOCK ONLY — that backend endpoint is still a
+ * Milestone 2 stub.
  * Pure filter helpers live in bookingHelpers.js, JSX for the two columns lives
  * in components/BookingTable.jsx and components/BookingDetailPanel.jsx.
  */
@@ -35,6 +36,10 @@ export default function BookingListPage() {
     filterLoading,
     filterError,
     loadFiltered,
+    searchResults,
+    searching,
+    searchError,
+    search,
     confirm,
     confirming,
     confirmError,
@@ -62,25 +67,34 @@ export default function BookingListPage() {
   }, [loadActive, loadPast]);
 
   useEffect(() => {
-    if (tab !== "active") return;
+    if (tab !== "active" || searchText.trim()) return;
     loadFiltered({
       serviceType: serviceTypeFilter,
       from: dateRangeToFrom(dateRangeFilter),
       sort: sortOrderToParam(sortOrder),
     });
-  }, [tab, serviceTypeFilter, dateRangeFilter, sortOrder, loadFiltered]);
+  }, [tab, searchText, serviceTypeFilter, dateRangeFilter, sortOrder, loadFiltered]);
+
+  useEffect(() => {
+    if (tab !== "active" || !searchText.trim()) return;
+    const timer = setTimeout(() => search(searchText.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [tab, searchText, search]);
 
   const activeDisplay = useMemo(() => active.map(toDisplayBooking), [active]);
   const pastDisplay = useMemo(() => past.map(toDisplayBooking), [past]);
   const filteredDisplay = useMemo(() => filtered.map(toDisplayBooking), [filtered]);
+  const searchDisplay = useMemo(() => searchResults.map(toDisplayBooking), [searchResults]);
+
+  const isSearching = tab === "active" && Boolean(searchText.trim());
 
   const list = tab === "active" ? activeDisplay : pastDisplay;
   const baseList =
-    tab === "active" ? filteredDisplay.filter((b) => ACTIVE_STATUSES.includes(b.status)) : pastDisplay;
+    tab === "active"
+      ? (isSearching ? searchDisplay : filteredDisplay).filter((b) => ACTIVE_STATUSES.includes(b.status))
+      : pastDisplay;
 
-  const filteredList = baseList
-    .filter((b) => matchesSearch(b, searchText))
-    .filter((b) => !statusFilter || b.status === statusFilter);
+  const filteredList = baseList.filter((b) => !statusFilter || b.status === statusFilter);
 
   const selected = filteredList.find((b) => b.id === selectedId) || filteredList[0];
 
@@ -117,14 +131,16 @@ export default function BookingListPage() {
         </div>
       </div>
 
-      {(listError || (tab === "active" && filterError)) && (
+      {(listError || (tab === "active" && (isSearching ? searchError : filterError))) && (
         <div className="mx-8 mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5" role="alert">
-          {listError || filterError}
+          {listError || (isSearching ? searchError : filterError)}
         </div>
       )}
 
       <div className="flex gap-6 p-8">
-        {(tab === "active" ? filterLoading && filteredList.length === 0 : listLoading && list.length === 0) ? (
+        {(tab === "active"
+          ? (isSearching ? searching : filterLoading) && filteredList.length === 0
+          : listLoading && list.length === 0) ? (
           <div className="flex-1 text-sm text-gray-400 py-12 text-center">Loading bookings…</div>
         ) : (
           <>

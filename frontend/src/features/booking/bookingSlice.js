@@ -16,6 +16,10 @@ const bookingSlice = createSlice({
     filterLoading: false,
     filterError: null,
 
+    searchResults: [],
+    searching: false,
+    searchError: null,
+
     confirming: false,
     confirmError: null,
 
@@ -117,6 +121,19 @@ const bookingSlice = createSlice({
     fetchFilteredFailure(state, action) {
       state.filterLoading = false;
       state.filterError = action.payload;
+    },
+
+    searchBookingsStart(state) {
+      state.searching = true;
+      state.searchError = null;
+    },
+    searchBookingsSuccess(state, action) {
+      state.searching = false;
+      state.searchResults = action.payload;
+    },
+    searchBookingsFailure(state, action) {
+      state.searching = false;
+      state.searchError = action.payload;
     },
   },
 });
