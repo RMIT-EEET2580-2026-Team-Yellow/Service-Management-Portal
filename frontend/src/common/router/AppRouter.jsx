@@ -8,6 +8,7 @@ import BookingDetailPage from "../../features/booking/pages/BookingDetailPage";
 import BookingCreatePage from "../../features/booking/pages/BookingCreatePage";
 import StaffListPage from "../../features/staff/pages/StaffListPage";
 import TechnicianBookingPage from "../../features/technician/pages/TechnicianBookingPage";
+import TechnicianSchedulePage from "../../features/technician/pages/TechnicianSchedulePage";
 import StatisticsPage from "../../features/statistics/pages/StatisticsPage";
 import RatingDetailPage from "../../features/statistics/pages/RatingDetailPage";
 import NotificationPage from "../../features/notification/pages/NotificationPage";
@@ -28,6 +29,7 @@ export default function AppRouter() {
         <Route path="/staff" element={<StaffListPage />} />
 
         <Route path="/technician" element={<TechnicianBookingPage />} />
+        <Route path="/technician/schedule" element={<TechnicianSchedulePage />} />
 
         <Route path="/statistics" element={<StatisticsPage />} />
         <Route path="/statistics/rating/:bookingId" element={<RatingDetailPage />} />
