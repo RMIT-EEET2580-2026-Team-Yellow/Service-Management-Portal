@@ -27,6 +27,14 @@ export function confirmBooking(bookingId, payload) {
   });
 }
 
+/** Service Tier — talks to PATCH /api/v1/bookings/{bookingId}/cancel (3.3.M1). */
+export function cancelBooking(bookingId, payload) {
+  return api(`${API_ROUTES.BOOKINGS}/${bookingId}/cancel`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 /** Service Tier — talks to GET /api/v1/bookings/filter (3.3.M10).*/
 export function fetchFilteredBookings({ serviceType, from, sort } = {}) {
   const params = new URLSearchParams();
@@ -35,4 +43,9 @@ export function fetchFilteredBookings({ serviceType, from, sort } = {}) {
   if (sort) params.set("sort", sort);
   const query = params.toString();
   return api(`${API_ROUTES.BOOKINGS}/filter${query ? `?${query}` : ""}`);
+}
+
+/** Service Tier — talks to GET /api/v1/bookings/search (3.3.M9). */
+export function searchBookings(query) {
+  return api(`${API_ROUTES.BOOKINGS}/search?query=${encodeURIComponent(query)}`);
 }

@@ -4,8 +4,9 @@
 // Page components (BookingListPage, BookingCreatePage) must not call
 // useSelector/useDispatch directly — they only call this hook.
 //
-// create()/loadActive()/loadPast()/confirm() are wired up (3.3.S1-S6, M2) —
-// assign/cancel are still Milestone 2 stubs on the backend (BookingServiceImpl).
+// create()/loadActive()/loadPast()/confirm()/cancel()/loadFiltered()/search() are wired up
+// (3.3.S1-S6, M1-M2, M9-M10) — assign is still a Milestone 2 stub on the backend
+// (BookingServiceImpl).
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,9 +21,15 @@ import {
   confirmBookingStart,
   confirmBookingSuccess,
   confirmBookingFailure,
+  cancelBookingStart,
+  cancelBookingSuccess,
+  cancelBookingFailure,
   fetchFilteredStart,
   fetchFilteredSuccess,
   fetchFilteredFailure,
+  searchBookingsStart,
+  searchBookingsSuccess,
+  searchBookingsFailure,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
@@ -38,8 +45,13 @@ export function useBookings() {
     filtered,
     filterLoading,
     filterError,
+    searchResults,
+    searching,
+    searchError,
     confirming,
     confirmError,
+    cancelling,
+    cancelError,
   } = useSelector((state) => state.booking);
 
   const create = useCallback(
@@ -92,6 +104,21 @@ export function useBookings() {
     [dispatch]
   );
 
+  const cancel = useCallback(
+    async (bookingId, payload) => {
+      dispatch(cancelBookingStart());
+      try {
+        const response = await bookingApi.cancelBooking(bookingId, payload);
+        dispatch(cancelBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(cancelBookingFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
   const loadFiltered = useCallback(
     async (params) => {
       dispatch(fetchFilteredStart());
@@ -100,6 +127,19 @@ export function useBookings() {
         dispatch(fetchFilteredSuccess(response.data));
       } catch (err) {
         dispatch(fetchFilteredFailure(err.message));
+      }
+    },
+    [dispatch]
+  );
+
+  const search = useCallback(
+    async (query) => {
+      dispatch(searchBookingsStart());
+      try {
+        const response = await bookingApi.searchBookings(query);
+        dispatch(searchBookingsSuccess(response.data));
+      } catch (err) {
+        dispatch(searchBookingsFailure(err.message));
       }
     },
     [dispatch]
@@ -119,8 +159,15 @@ export function useBookings() {
     filterLoading,
     filterError,
     loadFiltered,
+    searchResults,
+    searching,
+    searchError,
+    search,
     confirming,
     confirmError,
     confirm,
+    cancelling,
+    cancelError,
+    cancel,
   };
 }

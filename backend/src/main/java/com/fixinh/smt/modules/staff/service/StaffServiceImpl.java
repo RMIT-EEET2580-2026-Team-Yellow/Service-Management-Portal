@@ -2,13 +2,15 @@ package com.fixinh.smt.modules.staff.service;
 
 import com.fixinh.smt.common.exception.ApiException;
 import com.fixinh.smt.common.exception.ResourceNotFoundException;
+import com.fixinh.smt.common.sharding.ShardKeyResolver;
+import com.fixinh.smt.common.sharding.ShardRegion;
 import com.fixinh.smt.modules.auth.service.external.AuthExternalService;
 import com.fixinh.smt.modules.staff.dto.external.StaffExternalDto;
 import com.fixinh.smt.modules.staff.dto.internal.StaffRequest;
 import com.fixinh.smt.modules.staff.dto.internal.StaffResponse;
 import com.fixinh.smt.modules.staff.entity.Staff;
 import com.fixinh.smt.modules.staff.mapper.StaffMapper;
-import com.fixinh.smt.modules.staff.repository.StaffRepository;
+import com.fixinh.smt.modules.staff.repository.StaffShardRepository;
 import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.staff.service.internal.StaffInternalService;
 import com.fixinh.smt.common.util.ValidationUtil;
@@ -16,21 +18,24 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Implements both interfaces (A.3.1/A.3.2) — split is at the interface level, not the impl. */
 @Service
 public class StaffServiceImpl implements StaffExternalService, StaffInternalService {
 
-    private final StaffRepository staffRepository;
+    private final StaffShardRepository staffShardRepository;
     private final AuthExternalService authExternalService;
+    private final ShardKeyResolver shardKeyResolver;
 
-    public StaffServiceImpl(StaffRepository staffRepository, AuthExternalService authExternalService) {
-        this.staffRepository = staffRepository;
+    public StaffServiceImpl(StaffShardRepository staffShardRepository, AuthExternalService authExternalService,
+                             ShardKeyResolver shardKeyResolver) {
+        this.staffShardRepository = staffShardRepository;
         this.authExternalService = authExternalService;
+        this.shardKeyResolver = shardKeyResolver;
     }
 
-    // ---- StaffExternalService (used by Auth module + Admin/SBT staff search, 3.5.M2/4.M4) ----
 
     @Override
     public Optional<StaffExternalDto> findByEmail(String email) {
@@ -39,7 +44,9 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
     @Override
     public Optional<StaffExternalDto> findById(String staffId) {
-        return staffRepository.findById(staffId).map(StaffMapper::toExternalDto);
+        return staffShardRepository.findByIdWithRegion(staffId)
+                .map(Map.Entry::getValue)
+                .map(StaffMapper::toExternalDto);
     }
 
     @Override
@@ -73,9 +80,11 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
             throw new ApiException(HttpStatus.BAD_REQUEST, "Password and confirm password do not match");
         }
 
-        if (staffRepository.existsByEmail(request.email())) {
+        if (staffShardRepository.existsByEmail(request.email())) {
             throw new ApiException(HttpStatus.CONFLICT, "Email already exists");
         }
+
+        ShardRegion region = shardKeyResolver.resolve(request.province());
 
         Staff staff = Staff.builder()
             .fullName(request.fullName())
@@ -89,28 +98,31 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
             .active(true)
             .build();
 
-        Staff saved = staffRepository.save(staff);
+        Staff saved = staffShardRepository.insert(staff, region);
         authExternalService.createCredentials(saved.getId(), saved.getEmail(), request.password(), saved.getRole());
-        
+
         return StaffMapper.toResponse(saved);
     }
 
     @Override
     public StaffResponse getById(String staffId) {
-        Staff staff = staffRepository.findById(staffId)
+        Staff staff = staffShardRepository.findByIdWithRegion(staffId)
+                .map(Map.Entry::getValue)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
         return StaffMapper.toResponse(staff);
     }
 
     @Override
     public List<StaffResponse> list() {
-        return staffRepository.findAll().stream().map(StaffMapper::toResponse).toList();
+        return staffShardRepository.findAllAcrossShards().stream().map(StaffMapper::toResponse).toList();
     }
 
     @Override
     public StaffResponse update(String staffId, StaffRequest request) {
-        Staff staff = staffRepository.findById(staffId)
+        Map.Entry<ShardRegion, Staff> located = staffShardRepository.findByIdWithRegion(staffId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
+        ShardRegion currentRegion = located.getKey();
+        Staff staff = located.getValue();
 
         if (!ValidationUtil.isValidEmail(request.email())) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
@@ -132,7 +144,16 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
         staff.setWard(request.ward());
         staff.setProvince(request.province());
 
-        Staff saved = staffRepository.save(staff);
+        ShardRegion newRegion = shardKeyResolver.resolve(request.province());
+
+        Staff saved;
+        if (newRegion == currentRegion) {
+            saved = staffShardRepository.save(staff, currentRegion);
+        } else {
+            // Branch address moved to the other region (3.1.U2) - the document has to move shards.
+            staffShardRepository.delete(staff, currentRegion);
+            saved = staffShardRepository.insert(staff, newRegion);
+        }
         authExternalService.updateCredentials(saved.getId(), saved.getEmail(), saved.getRole());
 
         return StaffMapper.toResponse(saved);
@@ -140,10 +161,10 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
     @Override
     public void delete(String staffId) {
-        if (!staffRepository.existsById(staffId)) {
-            throw new ResourceNotFoundException("Staff not found: " + staffId);
-        }
+        Map.Entry<ShardRegion, Staff> located = staffShardRepository.findByIdWithRegion(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
+
         authExternalService.deleteCredentials(staffId);
-        staffRepository.deleteById(staffId);
+        staffShardRepository.delete(located.getValue(), located.getKey());
     }
 }
