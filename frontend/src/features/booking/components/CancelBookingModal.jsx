@@ -2,7 +2,7 @@ import { useState } from "react";
 
 /**
  * Wired to PATCH /api/v1/bookings/{id}/cancel (3.3.M1). Status transition rule:
- * Created/Confirmed/Scheduled → Cancelled by Customer; Working → Terminated by Customer.
+ * CREATED/CONFIRMED/SCHEDULED → CANCELLED BY CUSTOMER; WORKING → TERMINATED BY CUSTOMER.
  * Evidence image upload isn't wired yet — no upload endpoint exists on the backend —
  * so evidenceImageUrls is always sent as an empty list for now.
  */
@@ -12,7 +12,7 @@ export default function CancelBookingModal({ booking, onBack, onConfirm, cancell
   if (!booking) return null;
 
   const targetStatus =
-    booking.status === "Working" ? "Terminated by Customer" : "Cancelled by Customer";
+    booking.status === "WORKING" ? "TERMINATED BY CUSTOMER" : "CANCELLED BY CUSTOMER";
 
   function handleConfirm() {
     onConfirm(reason, targetStatus);
