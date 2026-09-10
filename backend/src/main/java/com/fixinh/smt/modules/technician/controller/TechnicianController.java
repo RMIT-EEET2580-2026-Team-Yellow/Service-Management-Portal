@@ -50,6 +50,14 @@ public class TechnicianController {
         return ApiResponse.ok(technicianInternalService.getByStaffId(staffId));
     }
 
+    /** Dashboard's Technician Availability card (A.2.a: full roster is ADMIN-only reporting,
+     *  mirrors StaffController's own /staff listing). */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<TechnicianResponse>> listAll() {
+        return ApiResponse.ok(technicianInternalService.listAll());
+    }
+
     @GetMapping("/{technicianId}/bookings")
     @PreAuthorize(OWN_TECHNICIAN)
     public ApiResponse<List<TechnicianBookingResponse>> myBookings(@PathVariable String technicianId) {

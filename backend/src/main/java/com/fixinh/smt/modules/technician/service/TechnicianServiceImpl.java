@@ -542,6 +542,19 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
     }
 
     @Override
+    public List<TechnicianResponse> listAll() {
+        return technicianRepository.findAll().stream()
+            .map(technician -> {
+                TechnicianAvailability availability = getOrCreateDefaultAvailability(technician.getId());
+                String fullName = staffExternalService.findById(technician.getStaffId())
+                    .map(StaffExternalDto::fullName)
+                    .orElse("Unknown technician");
+                return toTechnicianResponse(technician, availability, fullName);
+            })
+            .toList();
+    }
+
+    @Override
     public void createDefaultProfile(String staffId) {
         Technician technician = getOrCreateTechnician(staffId);
         getOrCreateDefaultAvailability(technician.getId());

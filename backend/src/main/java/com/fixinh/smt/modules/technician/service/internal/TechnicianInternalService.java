@@ -21,6 +21,9 @@ public interface TechnicianInternalService {
 
     TechnicianResponse getByStaffId(String staffId);
 
+    /** ADMIN-only roster of every Technician (dashboard's Technician Availability card). */
+    List<TechnicianResponse> listAll();
+
     List<TechnicianBookingResponse> myBookings(String technicianId);
 
     boolean acceptAssignment(String technicianId, String bookingId);
