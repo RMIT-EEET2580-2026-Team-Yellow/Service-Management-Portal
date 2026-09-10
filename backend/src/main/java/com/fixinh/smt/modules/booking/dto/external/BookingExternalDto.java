@@ -7,5 +7,6 @@ import java.time.LocalDate;
  * SBP must NOT reach the Booking module's repository or internal service (A.2.4, 4.M2).
  */
 public record BookingExternalDto(String bookingId, String customerId, String status,
-                                  LocalDate preferredDate, Double totalCost) {
+                                  LocalDate preferredDate, Double totalCost,
+                                  String serviceType, Double serviceFee) {
 }
