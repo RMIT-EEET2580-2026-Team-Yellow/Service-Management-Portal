@@ -19,16 +19,19 @@ import java.util.List;
 import java.time.LocalDate;
 
 /**
- * ADMIN can reach any technician's data; a TECHNICIAN may only reach their own (A.2.a) — enforced
- * by comparing the JWT's subject ({@code authentication.name}, set in JwtFilter) against the
- * {@code technicianId} path variable (or body field, for {@code setSchedule}).
+ * ADMIN can reach any technician's data; a TECHNICIAN may only reach their own (A.2.a).
+ * {@code authentication.name} (set in JwtFilter) is the caller's staffId, NOT a Technician
+ * document's own generated id — so ownership is checked via {@code @technicianAuth.isOwner},
+ * which resolves the {@code technicianId} path variable back to its staffId before comparing.
+ * {@code setSchedule} is the one exception: it takes a staffId directly in its body, so it
+ * compares against {@code authentication.name} with no lookup needed.
  */
 @RestController
 @RequestMapping("/api/v1/technicians")
 public class TechnicianController {
 
     private static final String OWN_TECHNICIAN =
-            "hasRole('ADMIN') or (hasRole('TECHNICIAN') and authentication.name == #technicianId)";
+            "hasRole('ADMIN') or (hasRole('TECHNICIAN') and @technicianAuth.isOwner(#technicianId, authentication.name))";
 
     private final TechnicianInternalService technicianInternalService;
 
