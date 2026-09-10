@@ -11,4 +11,8 @@ public interface AuthInternalService {
     void logout(String token);
 
     LoginResponse loginWithGoogle(String googleIdToken);
+
+    /** Server-to-server auth for SBT's backend (per "Message to SMT.md") — a shared secret, not a
+     *  Staff email/password, proves the caller is SBP's backend and not a spoofed client. */
+    LoginResponse issueServiceToken(String sharedSecret);
 }

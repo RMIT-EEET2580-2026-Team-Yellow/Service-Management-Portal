@@ -14,6 +14,7 @@ import com.fixinh.smt.modules.auth.entity.User;
 import com.fixinh.smt.modules.auth.repository.UserRepository;
 import com.fixinh.smt.modules.auth.service.external.AuthExternalService;
 import com.fixinh.smt.modules.auth.service.internal.AuthInternalService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,12 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+
+    @Value("${smt.service.auth-secret}")
+    private String serviceAuthSecret;
+
+    @Value("${smt.service.subject:sbp-service}")
+    private String serviceSubject;
 
     public AuthServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
@@ -64,6 +71,19 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
     public LoginResponse loginWithGoogle(String googleIdToken) {
         // TODO Milestone 2: 3.2.U1-U3 — reject if no matching Staff account exists.
         throw new UnsupportedOperationException("Milestone 2");
+    }
+
+    @Override
+    public LoginResponse issueServiceToken(String sharedSecret) {
+        // Constant-ish comparison isn't the point here (this isn't a password hash) — the real
+        // guard is that the secret is only ever exchanged with SBT out-of-band (env var on both
+        // sides), never typed by an end user or stored per-Staff like a login credential.
+        if (sharedSecret == null || !sharedSecret.equals(serviceAuthSecret)) {
+            throw new UnauthorizedException("Invalid service credentials");
+        }
+
+        String token = jwtUtil.generateToken(serviceSubject, RoleConfig.SERVICE);
+        return new LoginResponse(token, serviceSubject, RoleConfig.SERVICE);
     }
 
     // ---- AuthExternalService (consumed by common.security JwtFilter/CustomUserDetailsService,
