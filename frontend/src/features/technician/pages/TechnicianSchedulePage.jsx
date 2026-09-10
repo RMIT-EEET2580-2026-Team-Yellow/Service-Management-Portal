@@ -31,6 +31,25 @@ function formatDateTime(value) {
 
 const REQUIRED_WORK_DAYS = 5;
 
+/**
+ * Returns the 5 selected days re-ordered as a contiguous run (wrapping past SUN back to
+ * MON is allowed, e.g. SAT,SUN,MON,TUE,WED), or null if the selection isn't exactly one
+ * consecutive block of 5 days. Mirrors TechnicianServiceImpl#validateWorkingDays.
+ */
+function getConsecutiveBlock(selectedDays) {
+  if (selectedDays.length !== REQUIRED_WORK_DAYS) return null;
+  const selectedSet = new Set(selectedDays);
+
+  for (let start = 0; start < DAY_ORDER.length; start++) {
+    const block = [];
+    for (let i = 0; i < REQUIRED_WORK_DAYS; i++) {
+      block.push(DAY_ORDER[(start + i) % DAY_ORDER.length]);
+    }
+    if (block.every((d) => selectedSet.has(d))) return block;
+  }
+  return null;
+}
+
 function TechnicianScheduleForm({ profile, submitLoading, submitError, hasPending, onSubmit }) {
   const [worksOn, setWorksOn] = useState(() => {
     const current = new Set(profile?.workingDays || []);
@@ -38,7 +57,8 @@ function TechnicianScheduleForm({ profile, submitLoading, submitError, hasPendin
   });
 
   const workingDays = DAY_ORDER.filter((d) => worksOn[d]);
-  const isValidCount = workingDays.length === REQUIRED_WORK_DAYS;
+  const consecutiveBlock = getConsecutiveBlock(workingDays);
+  const isValidCount = consecutiveBlock !== null;
 
   if (hasPending) {
     return (
@@ -53,14 +73,14 @@ function TechnicianScheduleForm({ profile, submitLoading, submitError, hasPendin
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!isValidCount) return;
-        onSubmit({ workingDays });
+        if (!consecutiveBlock) return;
+        onSubmit({ workingDays: consecutiveBlock });
       }}
       className="bg-white rounded-xl shadow-sm p-5 flex flex-col gap-4"
     >
       <div>
         <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
-          Pick exactly {REQUIRED_WORK_DAYS} working days (any combination) — the other 2 are days off
+          Pick {REQUIRED_WORK_DAYS} consecutive working days — the other 2 (adjacent) days are off
         </label>
         <div className="flex flex-col divide-y divide-gray-100 rounded-lg border border-gray-200 overflow-hidden">
           {DAY_ORDER.map((d) => (
@@ -85,7 +105,10 @@ function TechnicianScheduleForm({ profile, submitLoading, submitError, hasPendin
         </div>
         <p className={`text-xs mt-2 ${isValidCount ? "text-gray-400" : "text-red-500 font-medium"}`}>
           {workingDays.length}/{REQUIRED_WORK_DAYS} working days selected
-          {!isValidCount && ` — must select exactly ${REQUIRED_WORK_DAYS}`}
+          {!isValidCount &&
+            (workingDays.length !== REQUIRED_WORK_DAYS
+              ? ` — must select exactly ${REQUIRED_WORK_DAYS}`
+              : " — the selected days must be consecutive (e.g. SAT–WED wrapping past SUN is OK)")}
         </p>
       </div>
 

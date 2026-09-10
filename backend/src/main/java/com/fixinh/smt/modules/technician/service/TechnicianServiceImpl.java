@@ -438,8 +438,8 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         return normalized;
     }
 
-    /** Exactly 5 distinct valid day codes — no consecutiveness requirement (used by the
-     *  Technician-submitted schedule change request, which lets a Technician pick any 2 days off). */
+    /** Exactly 5 distinct valid day codes, with no consecutiveness check on its own —
+     *  {@link #validateWorkingDays} layers the consecutiveness requirement on top of this. */
     private List<String> validateFiveUniqueDays(List<String> workingDays) {
         if (workingDays == null || workingDays.size() != 5) {
             throw new ApiException(
@@ -520,7 +520,7 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         technicianRepository.findById(technicianId)
             .orElseThrow(() -> new ResourceNotFoundException("Technician not found: " + technicianId));
 
-        List<String> normalWorkingDays = validateFiveUniqueDays(request.workingDays());
+        List<String> normalWorkingDays = validateWorkingDays(request.workingDays());
 
         technicianScheduleChangeRequestRepository.findByTechnicianIdAndStatus(technicianId, "PENDING")
             .ifPresent(existing -> {
