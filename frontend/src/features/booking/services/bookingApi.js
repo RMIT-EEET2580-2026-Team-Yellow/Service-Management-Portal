@@ -45,6 +45,9 @@ export function fetchFilteredBookings({ serviceType, from, sort } = {}) {
   return api(`${API_ROUTES.BOOKINGS}/filter${query ? `?${query}` : ""}`);
 }
 
+/** Service Tier — talks to GET /api/v1/bookings/search (3.3.M9). */
+export function searchBookings(query) {
+  return api(`${API_ROUTES.BOOKINGS}/search?query=${encodeURIComponent(query)}`);
 export function assignTechnicians(bookingId, technicianIds) {
   return api(`${API_ROUTES.BOOKINGS}/${bookingId}/assign`, {
     method: "PATCH",

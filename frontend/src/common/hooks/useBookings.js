@@ -4,8 +4,9 @@
 // Page components (BookingListPage, BookingCreatePage) must not call
 // useSelector/useDispatch directly — they only call this hook.
 //
-// create()/loadActive()/loadPast()/confirm()/cancel() are wired up (3.3.S1-S6, M1-M2) —
-// assign is still a Milestone 2 stub on the backend (BookingServiceImpl).
+// create()/loadActive()/loadPast()/confirm()/cancel()/loadFiltered()/search() are wired up
+// (3.3.S1-S6, M1-M2, M9-M10) — assign is still a Milestone 2 stub on the backend
+// (BookingServiceImpl).
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -26,9 +27,9 @@ import {
   fetchFilteredStart,
   fetchFilteredSuccess,
   fetchFilteredFailure,
-  assignBookingStart,
-  assignBookingSuccess,
-  assignBookingFailure
+  searchBookingsStart,
+  searchBookingsSuccess,
+  searchBookingsFailure,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
@@ -44,6 +45,9 @@ export function useBookings() {
     filtered,
     filterLoading,
     filterError,
+    searchResults,
+    searching,
+    searchError,
     confirming,
     confirmError,
     cancelling,
@@ -130,6 +134,14 @@ export function useBookings() {
     [dispatch]
   );
 
+  const search = useCallback(
+    async (query) => {
+      dispatch(searchBookingsStart());
+      try {
+        const response = await bookingApi.searchBookings(query);
+        dispatch(searchBookingsSuccess(response.data));
+      } catch (err) {
+        dispatch(searchBookingsFailure(err.message));
   const assign = useCallback(
     async (bookingId, technicianIds) => {
       dispatch(assignBookingStart());
@@ -160,6 +172,10 @@ export function useBookings() {
     filterLoading,
     filterError,
     loadFiltered,
+    searchResults,
+    searching,
+    searchError,
+    search,
     confirming,
     confirmError,
     confirm,

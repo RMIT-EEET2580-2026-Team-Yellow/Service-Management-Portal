@@ -7,12 +7,15 @@ import com.fixinh.smt.modules.statistics.service.internal.StatisticsInternalServ
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/** Revenue and rating statistics are ADMIN-only reporting (A.2.a). */
 @RestController
 @RequestMapping("/api/v1/statistics")
+@PreAuthorize("hasRole('ADMIN')")
 public class StatisticsController {
 
     private final StatisticsInternalService statisticsInternalService;
