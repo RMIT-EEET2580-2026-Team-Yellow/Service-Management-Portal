@@ -4,13 +4,16 @@ import com.fixinh.smt.common.web.ApiResponse;
 import com.fixinh.smt.modules.booking.dto.internal.*;
 import com.fixinh.smt.modules.booking.service.internal.BookingInternalService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
 
+/** Booking intake/management is a front-desk capability: RECEPTIONIST and ADMIN only (A.2.a). */
 @RestController
 @RequestMapping("/api/v1/bookings")
+@PreAuthorize("hasRole('ADMIN') or hasRole('RECEPTIONIST')")
 public class BookingController {
 
     private final BookingInternalService bookingInternalService;

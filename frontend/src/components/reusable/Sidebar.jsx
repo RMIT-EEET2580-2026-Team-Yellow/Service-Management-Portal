@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import NavIcon from "./NavIcon";
 import { useAuth } from "../../common/hooks/useAuth";
+import { ROUTE_ROLES } from "../../common/utils/roleAccess";
 
 const navItems = [
   { icon: "grid", label: "Dashboard", path: "/dashboard" },
@@ -20,7 +21,10 @@ export default function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const visibleNavItems = navItems.filter((item) =>
+    ROUTE_ROLES[item.path]?.includes(user?.role)
+  );
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -39,7 +43,7 @@ export default function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-16 flex-shrink-0 flex-col items-center gap-2 border-r border-slate-200 bg-slate-900 py-4 dark:border-slate-800">
       <img src={logo} alt="Fixinh" className="mb-4 h-9 w-9 rounded-lg object-contain" />
-      {navItems.map((item) => (
+      {visibleNavItems.map((item) => (
         <NavLink
           key={item.path}
           to={item.path}
@@ -60,8 +64,8 @@ export default function Sidebar() {
         {menuOpen && (
           <div className="absolute bottom-0 left-14 z-10 w-48 rounded-xl border border-slate-700 bg-slate-800 p-1.5 shadow-lg">
             <div className="px-2.5 py-2">
-              <p className="text-sm font-medium text-white">Alex Rivera</p>
-              <p className="text-xs text-slate-400">dinhlam2901@gmail.com</p>
+              <p className="text-sm font-medium text-white">{user?.staffId ?? "Unknown"}</p>
+              <p className="text-xs text-slate-400">{user?.role ?? ""}</p>
             </div>
             <div className="my-1 h-px bg-slate-700" />
             <button
@@ -91,7 +95,7 @@ export default function Sidebar() {
             menuOpen ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200"
           }`}
         >
-          AR
+          {user?.role ? user.role.slice(0, 2) : "?"}
         </button>
       </div>
     </aside>

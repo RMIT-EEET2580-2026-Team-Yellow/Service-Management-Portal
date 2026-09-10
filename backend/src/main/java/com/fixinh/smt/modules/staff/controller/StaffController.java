@@ -5,6 +5,7 @@ import com.fixinh.smt.modules.staff.dto.internal.StaffRequest;
 import com.fixinh.smt.modules.staff.dto.internal.StaffResponse;
 import com.fixinh.smt.modules.staff.service.internal.StaffInternalService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,9 +13,12 @@ import java.util.List;
 /**
  * Also backs the Staff Search Interface consumed by SBT's Admin Portal (3.5.M2, 4.M4) —
  * exposed under {@code /api/v1/staff/search} for cross-portal use.
+ *
+ * <p>Managing staff accounts (and the roles they carry) is an ADMIN-only capability (A.2.a).
  */
 @RestController
 @RequestMapping("/api/v1/staff")
+@PreAuthorize("hasRole('ADMIN')")
 public class StaffController {
 
     private final StaffInternalService staffInternalService;
