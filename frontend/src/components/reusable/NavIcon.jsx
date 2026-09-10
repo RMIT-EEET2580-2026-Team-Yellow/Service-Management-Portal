@@ -10,6 +10,7 @@ const paths = {
   check: "M5 13l4 4L19 7",
   wrench: "M14.7 6.3a4 4 0 10-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2-2z",
   chart: "M4 20V10M10 20V4M16 20v-7M4 20h16",
+  clock: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 3",
 };
 
 export default function NavIcon({ name, className = "h-5 w-5" }) {

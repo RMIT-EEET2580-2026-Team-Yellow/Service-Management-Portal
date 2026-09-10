@@ -8,6 +8,7 @@ import BookingDetailPage from "../../features/booking/pages/BookingDetailPage";
 import BookingCreatePage from "../../features/booking/pages/BookingCreatePage";
 import StaffListPage from "../../features/staff/pages/StaffListPage";
 import TechnicianBookingPage from "../../features/technician/pages/TechnicianBookingPage";
+import TechnicianSchedulePage from "../../features/technician/pages/TechnicianSchedulePage";
 import StatisticsPage from "../../features/statistics/pages/StatisticsPage";
 import RatingDetailPage from "../../features/statistics/pages/RatingDetailPage";
 import NotificationPage from "../../features/notification/pages/NotificationPage";
@@ -46,6 +47,10 @@ export default function AppRouter() {
         <Route
           path="/technician"
           element={<ProtectedRoute roles={ROUTE_ROLES["/technician"]}><TechnicianBookingPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/technician/schedule"
+          element={<ProtectedRoute roles={ROUTE_ROLES["/technician/schedule"]}><TechnicianSchedulePage /></ProtectedRoute>}
         />
 
         <Route

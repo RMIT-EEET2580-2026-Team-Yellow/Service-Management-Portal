@@ -5,6 +5,8 @@ import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
+import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
+import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
 import com.fixinh.smt.modules.technician.service.internal.TechnicianInternalService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,6 +37,11 @@ public class TechnicianController {
     @PreAuthorize("hasRole('ADMIN') or (hasRole('TECHNICIAN') and authentication.name == #request.staffId)")
     public ApiResponse<TechnicianResponse> setSchedule(@Valid @RequestBody TechnicianScheduleRequest request) {
         return ApiResponse.ok(technicianInternalService.setSchedule(request));
+    }
+
+    @GetMapping("/by-staff/{staffId}")
+    public ApiResponse<TechnicianResponse> getByStaffId(@PathVariable String staffId) {
+        return ApiResponse.ok(technicianInternalService.getByStaffId(staffId));
     }
 
     @GetMapping("/{technicianId}/bookings")
@@ -107,5 +114,50 @@ public class TechnicianController {
         );
 
         return ApiResponse.ok(null);
+    }
+
+    // Schedule change requests (Technician proposes, Admin approves/rejects)
+    @PostMapping("/{technicianId}/schedule-requests")
+    @PreAuthorize(OWN_TECHNICIAN)
+    public ApiResponse<ScheduleChangeResponse> submitScheduleChangeRequest(
+        @PathVariable String technicianId,
+        @Valid @RequestBody ScheduleChangeRequestDto request
+    ) {
+        return ApiResponse.ok(
+            technicianInternalService.submitScheduleChangeRequest(technicianId, request)
+        );
+    }
+
+    @GetMapping("/{technicianId}/schedule-requests")
+    @PreAuthorize(OWN_TECHNICIAN)
+    public ApiResponse<List<ScheduleChangeResponse>> listScheduleChangeRequests(
+        @PathVariable String technicianId
+    ) {
+        return ApiResponse.ok(
+            technicianInternalService.listScheduleChangeRequests(technicianId)
+        );
+    }
+
+    @GetMapping("/schedule-requests")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<ScheduleChangeResponse>> listPendingScheduleChangeRequests() {
+        return ApiResponse.ok(technicianInternalService.listPendingScheduleChangeRequests());
+    }
+
+    @PatchMapping("/schedule-requests/{requestId}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ScheduleChangeResponse> approveScheduleChangeRequest(
+        @PathVariable String requestId
+    ) {
+        return ApiResponse.ok(technicianInternalService.approveScheduleChangeRequest(requestId));
+    }
+
+    @PatchMapping("/schedule-requests/{requestId}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ScheduleChangeResponse> rejectScheduleChangeRequest(
+        @PathVariable String requestId,
+        @RequestParam(required = false) String reason
+    ) {
+        return ApiResponse.ok(technicianInternalService.rejectScheduleChangeRequest(requestId, reason));
     }
 }
