@@ -58,15 +58,6 @@ export const STATUS_STYLES = {
   "Aborted by Technician": "bg-purple-100 text-purple-700",
 };
 
-export function matchesSearch(booking, query) {
-  if (!query.trim()) return true;
-  const q = query.trim().toLowerCase();
-  if (booking.id.toLowerCase().includes(q)) return true;
-  if (booking.service.toLowerCase().includes(q)) return true;
-  if (booking.technicians?.some((t) => t.name.toLowerCase().includes(q))) return true;
-  return false;
-}
-
 export const ACTIVE_STATUSES = ["Created", "Confirmed", "Scheduled", "Working"];
 
 export function dateRangeToFrom(range) {

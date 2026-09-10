@@ -148,10 +148,27 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                 .toList();
     }
 
+    /** 3.3.M9 — case-insensitive match on Booking ID or an assigned technician's full name. */
     @Override
     public List<BookingResponse> search(String query) {
-        // TODO Milestone 2: case-insensitive match on Booking ID or Technician name (3.3.M9).
-        throw new UnsupportedOperationException("Milestone 2");
+        if (!StringUtils.hasText(query)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "query is required.");
+        }
+        String needle = query.trim().toLowerCase();
+
+        return bookingRepository.findAll().stream()
+                .filter(b -> matchesIdOrTechnician(b, needle))
+                .sorted(Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .toList();
+    }
+
+    private boolean matchesIdOrTechnician(Booking booking, String lowercaseNeedle) {
+        if (booking.getId() != null && booking.getId().toLowerCase().contains(lowercaseNeedle)) {
+            return true;
+        }
+        return technicianExternalService.findAssignedTechnicianNames(booking.getId()).stream()
+                .anyMatch(name -> name.toLowerCase().contains(lowercaseNeedle));
     }
 
     @Override
@@ -209,10 +226,36 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         throw new UnsupportedOperationException("Milestone 2");
     }
 
+    /** Created, Confirmed, Scheduled -> "Cancelled by Customer" (3.3.M1). */
+    private static final List<String> CANCELLABLE_TO_CANCELLED = List.of("Created", "Confirmed", "Scheduled");
+
     @Override
     public BookingResponse cancel(String bookingId, CancelBookingRequest request) {
-        // TODO Milestone 2: 3.3.M1 status transition rules (Created/Confirmed/Scheduled -> Cancelled
-        // by Customer; Working -> Terminated by Customer), then notify (3.3.U2).
-        throw new UnsupportedOperationException("Milestone 2");
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!StringUtils.hasText(request.reason())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "reason is required to cancel a booking.");
+        }
+
+        String currentStatus = booking.getStatus();
+        String newStatus;
+        if (CANCELLABLE_TO_CANCELLED.contains(currentStatus)) {
+            newStatus = "Cancelled by Customer";
+        } else if ("Working".equals(currentStatus)) {
+            newStatus = "Terminated by Customer";
+        } else {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Booking with status \"" + currentStatus + "\" cannot be cancelled.");
+        }
+
+        booking.setStatus(newStatus);
+        booking.setCancelReason(request.reason());
+        booking.setCancelEvidenceImageUrls(request.evidenceImageUrls());
+        // TODO Milestone 2: notify (3.3.U2) once NotificationExternalService.notifyStatusChange
+        // is implemented — calling it now would throw UnsupportedOperationException.
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 }
