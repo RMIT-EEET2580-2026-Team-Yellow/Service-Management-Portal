@@ -63,7 +63,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
        
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.plusDays(1).atStartOfDay(); // exclusive upper bound, so `to` is inclusive
-        return bookingRepository.findByStatusAndCreatedAtBetween("Completed", start, end).stream()
+        return bookingRepository.findByStatusAndCreatedAtBetween("COMPLETED", start, end).stream()
                 .map(BookingMapper::toExternalDto)
                 .toList();
     }

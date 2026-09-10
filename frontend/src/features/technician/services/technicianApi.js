@@ -6,6 +6,11 @@ export function fetchTechnicianByStaffId(staffId) {
   return api(`${API_ROUTES.TECHNICIANS}/by-staff/${staffId}`);
 }
 
+/** Service Tier — talks to GET /api/v1/technicians (ADMIN-only roster, dashboard use). */
+export function fetchAllTechnicians() {
+  return api(API_ROUTES.TECHNICIANS);
+}
+
 /** Service Tier — talks to POST /api/v1/technicians/{technicianId}/schedule-requests. */
 export function submitScheduleChangeRequest(technicianId, { workingDays }) {
   return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/schedule-requests`, {
