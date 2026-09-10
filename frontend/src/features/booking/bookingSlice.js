@@ -1,5 +1,15 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// The Active tab renders `filtered` (or `searchResults` while searching) — not `active` — so a
+// confirm/assign/cancel success has to patch every list the booking could currently be shown in,
+// not just `active`, or the change stays invisible until the next full refetch.
+function patchBookingInList(list, updated) {
+  const index = list.findIndex((b) => b.id === updated.id);
+  if (index !== -1) {
+    list[index] = updated;
+  }
+}
+
 const bookingSlice = createSlice({
   name: "booking",
   initialState: {
@@ -67,10 +77,9 @@ const bookingSlice = createSlice({
     confirmBookingSuccess(state, action) {
       state.confirming = false;
       const updated = action.payload;
-      const index = state.active.findIndex((b) => b.id === updated.id);
-      if (index !== -1) {
-        state.active[index] = updated;
-      }
+      patchBookingInList(state.active, updated);
+      patchBookingInList(state.filtered, updated);
+      patchBookingInList(state.searchResults, updated);
     },
     confirmBookingFailure(state, action) {
       state.confirming = false;
@@ -83,10 +92,9 @@ const bookingSlice = createSlice({
     assignBookingSuccess(state, action) {
       state.assigning = false;
       const updated = action.payload;
-      const index = state.active.findIndex((booking) => booking.id === updated.id);
-      if (index !== -1) {
-        state.active[index] = updated;
-      }
+      patchBookingInList(state.active, updated);
+      patchBookingInList(state.filtered, updated);
+      patchBookingInList(state.searchResults, updated);
     },
     assignBookingFailure(state, active) {
       state.assigning = false;
@@ -100,10 +108,9 @@ const bookingSlice = createSlice({
     cancelBookingSuccess(state, action) {
       state.cancelling = false;
       const updated = action.payload;
-      const index = state.active.findIndex((b) => b.id === updated.id);
-      if (index !== -1) {
-        state.active[index] = updated;
-      }
+      patchBookingInList(state.active, updated);
+      patchBookingInList(state.filtered, updated);
+      patchBookingInList(state.searchResults, updated);
     },
     cancelBookingFailure(state, action) {
       state.cancelling = false;
@@ -157,6 +164,9 @@ export const {
   fetchFilteredFailure,
   assignBookingStart,
   assignBookingSuccess,
-  assignBookingFailure
+  assignBookingFailure,
+  searchBookingsStart,
+  searchBookingsSuccess,
+  searchBookingsFailure
 } = bookingSlice.actions;
 export default bookingSlice.reducer;

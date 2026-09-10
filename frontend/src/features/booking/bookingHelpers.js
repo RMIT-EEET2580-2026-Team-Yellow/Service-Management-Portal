@@ -46,6 +46,8 @@ export function toDisplayBooking(booking) {
     serviceFeeAmt: formatMoney(booking.serviceFee),
     materialCost: formatMoney(booking.materialCost),
     totalCost: formatMoney(booking.totalCost),
+    requiredTechnicianCount: booking.requiredTechnicianCount ?? 1,
+    activeAssignmentCount: booking.activeAssignmentCount ?? 0,
   };
 }
 

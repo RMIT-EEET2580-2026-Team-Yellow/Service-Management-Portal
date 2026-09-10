@@ -20,6 +20,13 @@ const technicianSlice = createSlice({
 
     actionLoading: false,
     actionError: null,
+
+    bookings: [],
+    bookingsLoading: false,
+    bookingsError: null,
+
+    bookingActionLoading: false,
+    bookingActionError: null,
   },
   reducers: {
     fetchProfileStart(state) {
@@ -86,6 +93,31 @@ const technicianSlice = createSlice({
       state.actionLoading = false;
       state.actionError = action.payload;
     },
+
+    fetchBookingsStart(state) {
+      state.bookingsLoading = true;
+      state.bookingsError = null;
+    },
+    fetchBookingsSuccess(state, action) {
+      state.bookingsLoading = false;
+      state.bookings = action.payload;
+    },
+    fetchBookingsFailure(state, action) {
+      state.bookingsLoading = false;
+      state.bookingsError = action.payload;
+    },
+
+    bookingActionStart(state) {
+      state.bookingActionLoading = true;
+      state.bookingActionError = null;
+    },
+    bookingActionSuccess(state) {
+      state.bookingActionLoading = false;
+    },
+    bookingActionFailure(state, action) {
+      state.bookingActionLoading = false;
+      state.bookingActionError = action.payload;
+    },
   },
 });
 
@@ -105,6 +137,12 @@ export const {
   respondRequestStart,
   respondRequestSuccess,
   respondRequestFailure,
+  fetchBookingsStart,
+  fetchBookingsSuccess,
+  fetchBookingsFailure,
+  bookingActionStart,
+  bookingActionSuccess,
+  bookingActionFailure,
 } = technicianSlice.actions;
 
 export default technicianSlice.reducer;

@@ -8,6 +8,7 @@ import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
+import com.fixinh.smt.modules.technician.dto.internal.TechnicianBookingResponse;
 
 import java.util.List;
 import java.time.LocalDate;
@@ -20,14 +21,21 @@ public interface TechnicianInternalService {
 
     TechnicianResponse getByStaffId(String staffId);
 
-    List<TechnicianResponse> myBookings(String technicianId);
+    /** ADMIN-only roster of every Technician (dashboard's Technician Availability card). */
+    List<TechnicianResponse> listAll();
 
-    TechnicianResponse startWork(String technicianId, String bookingId);
+    List<TechnicianBookingResponse> myBookings(String technicianId);
 
-    TechnicianResponse complete(String technicianId, String bookingId, double serviceFee,
+    boolean acceptAssignment(String technicianId, String bookingId);
+
+    boolean rejectAssignment(String technicianId, String bookingId);
+
+    BookingExternalDto startWork(String technicianId, String bookingId);
+
+    BookingExternalDto complete(String technicianId, String bookingId, double serviceFee,
                                  double materialCost, String signedBillImageUrl);
 
-    TechnicianResponse abort(String technicianId, String bookingId, String reason);
+    BookingExternalDto abort(String technicianId, String bookingId, String reason);
 
     List<TechnicianExternalDto> findAvailableTechnicians(
         LocalDate date, LocalTime start, LocalTime end, int durationMinutes

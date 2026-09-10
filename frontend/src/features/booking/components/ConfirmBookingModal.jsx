@@ -58,6 +58,11 @@ export default function ConfirmBookingModal({ booking, onCancel, onConfirm, conf
             </div>
           </div>
 
+          <div className="bg-indigo-50 text-indigo-700 text-[11.5px] rounded-lg px-3 py-2.5 mb-4">
+            After confirming, we'll try to auto-assign {booking.requiredTechnicianCount ?? 1}{" "}
+            available technician(s) to this job. You can still assign manually if needed.
+          </div>
+
           <div className="mb-4">
             <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1.5">
               Service Fee (VND)

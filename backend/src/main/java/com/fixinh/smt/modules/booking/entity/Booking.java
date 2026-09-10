@@ -49,6 +49,11 @@ public class Booking implements Persistable<String> {
     private LocalTime availableStart;
     private LocalTime availableEnd;
 
+    /** How many technicians this job needs working it at once (e.g. a 2-person lifting job) —
+     *  drives both auto-assign-on-confirm and the cap on manual "Assign Technician". Defaults
+     *  to 1 for bookings that don't set it (including every SBP-created booking). */
+    private Integer requiredTechnicianCount;
+
     /** Created | Confirmed | Scheduled | Working | Completed | Cancelled by Customer |
      *  Terminated by Customer | Aborted by Technician. */
     private String status;

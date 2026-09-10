@@ -30,6 +30,9 @@ import {
   searchBookingsStart,
   searchBookingsSuccess,
   searchBookingsFailure,
+  assignBookingStart,
+  assignBookingSuccess,
+  assignBookingFailure,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
@@ -142,6 +145,11 @@ export function useBookings() {
         dispatch(searchBookingsSuccess(response.data));
       } catch (err) {
         dispatch(searchBookingsFailure(err.message));
+      }
+    },
+    [dispatch]
+  );
+
   const assign = useCallback(
     async (bookingId, technicianIds) => {
       dispatch(assignBookingStart());
