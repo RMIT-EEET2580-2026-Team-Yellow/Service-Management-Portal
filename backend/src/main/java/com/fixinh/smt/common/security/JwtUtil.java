@@ -1,12 +1,9 @@
 package com.fixinh.smt.common.security;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
@@ -14,20 +11,18 @@ import java.util.Date;
  * {@code common} — NOT inside the {@code auth} module — because every module's Controller Tier
  * needs it to authorize requests (A.2.a).
  *
- * <p>Uses HMAC (symmetric key, from {@code smt.jwt.secret}) rather than RSA — simpler, no
- * keystore file to manage, and matches the secret already declared in application.properties.
+
  */
 @Component
 public class JwtUtil {
 
-    @Value("${smt.jwt.secret}")
-    private String secret;
+    private final KeyStoreManager keyStoreManager;
 
     @Value("${smt.jwt.expiration-minutes}")
     private long expirationMinutes;
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    public JwtUtil(KeyStoreManager keyStoreManager) {
+        this.keyStoreManager = keyStoreManager;
     }
 
     public String generateToken(String staffId, RoleConfig role) {
@@ -36,13 +31,13 @@ public class JwtUtil {
                 .claim("role", role.name())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMinutes * 60 * 1000))
-                .signWith(getSigningKey())
+                .signWith(keyStoreManager.getPrivateKey(), Jwts.SIG.RS256)
                 .compact();
     }
 
     public boolean isValid(String token) {
         try {
-            Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
+            Jwts.parser().verifyWith(keyStoreManager.getPublicKey()).build().parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;
@@ -50,14 +45,14 @@ public class JwtUtil {
     }
 
     public String extractStaffId(String token) {
-        return Jwts.parser().verifyWith(getSigningKey()).build()
+        return Jwts.parser().verifyWith(keyStoreManager.getPublicKey()).build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
     }
 
     public RoleConfig extractRole(String token) {
-        String role = Jwts.parser().verifyWith(getSigningKey()).build()
+        String role = Jwts.parser().verifyWith(keyStoreManager.getPublicKey()).build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .get("role", String.class);
