@@ -50,7 +50,7 @@ export default function BookingDetailPanel({
       </div>
 
       {/* Completed cost summary */}
-      {selected.status === "Completed" && (
+      {selected.status === "COMPLETED" && (
         <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
           <div className="text-[10px] font-bold uppercase text-gray-400 mb-2.5">Cost Summary</div>
           <div className="grid grid-cols-3 gap-2.5 text-center">
@@ -71,9 +71,9 @@ export default function BookingDetailPanel({
       )}
 
       {/* Cancelled / Aborted reason */}
-      {(selected.status === "Cancelled by Customer" ||
-        selected.status === "Terminated by Customer" ||
-        selected.status === "Aborted by Technician") && (
+      {(selected.status === "CANCELLED BY CUSTOMER" ||
+        selected.status === "TERMINATED BY CUSTOMER" ||
+        selected.status === "ABORTED BY TECHNICIAN") && (
         <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
           <div className="text-[10px] font-bold uppercase text-gray-400 mb-2.5">Reason</div>
           <p className="text-xs leading-relaxed">{selected.reason}</p>
@@ -121,7 +121,7 @@ export default function BookingDetailPanel({
       )}
 
       <div className="mt-auto px-5 py-4 flex justify-end gap-2.5">
-        {tab === "active" && selected.status === "Created" && (
+        {tab === "active" && selected.status === "CREATED" && (
           <button
             onClick={onConfirmBooking}
             className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-lg"
@@ -129,7 +129,7 @@ export default function BookingDetailPanel({
             Confirm Booking
           </button>
         )}
-        {tab === "active" && selected.status === "Confirmed" && (
+        {tab === "active" && selected.status === "CONFIRMED" && (
           <button
             onClick={onAssignTechnician}
             className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-lg"
@@ -138,7 +138,7 @@ export default function BookingDetailPanel({
           </button>
         )}
         {tab === "active" &&
-          ["Created", "Confirmed", "Scheduled", "Working"].includes(selected.status) && (
+          ["CREATED", "CONFIRMED", "SCHEDULED", "WORKING"].includes(selected.status) && (
             <button
               onClick={onCancelBooking}
               className="border border-red-500 text-red-500 text-sm font-bold px-4 py-2 rounded-lg hover:bg-red-50"

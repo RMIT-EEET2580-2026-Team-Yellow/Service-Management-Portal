@@ -80,7 +80,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     /**
      * Shared by the Receptionist-facing create() and the SBP-facing createFromCustomer() (3.3.S1:
      * "Receptionists AND SBP" create a booking the same way). Validates the fields a customer/
-     * Receptionist supplies (3.3.S2), then persists with status "Created".
+     * Receptionist supplies (3.3.S2), then persists with status "CREATED".
      */
     private Booking buildAndSaveBooking(String customerId, String serviceType, String issueDescription,
                                          String serviceAddress, LocalDate preferredDate,
@@ -118,17 +118,17 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                 .preferredDate(preferredDate)
                 .availableStart(availableStart)
                 .availableEnd(availableEnd)
-                .status("Created")
+                .status("CREATED")
                 .build();
         return bookingRepository.save(booking);
     }
 
-    /** Created, Confirmed, Scheduled, Working (3.3.M2). */
-    private static final List<String> ACTIVE_STATUSES = List.of("Created", "Confirmed", "Scheduled", "Working");
+    /** CREATED, CONFIRMED, SCHEDULED, WORKING (3.3.M2). */
+    private static final List<String> ACTIVE_STATUSES = List.of("CREATED", "CONFIRMED", "SCHEDULED", "WORKING");
 
-    /** Completed, Cancelled by Customer, Terminated by Customer, Aborted by Technician (3.3.M2). */
+    /** COMPLETED, CANCELLED BY CUSTOMER, TERMINATED BY CUSTOMER, ABORTED BY TECHNICIAN (3.3.M2). */
     private static final List<String> PAST_STATUSES = List.of(
-            "Completed", "Cancelled by Customer", "Terminated by Customer", "Aborted by Technician");
+            "COMPLETED", "CANCELLED BY CUSTOMER", "TERMINATED BY CUSTOMER", "ABORTED BY TECHNICIAN");
 
     @Override
     public List<BookingResponse> listActive() {
@@ -192,9 +192,9 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
 
-        if (!"Created".equals(booking.getStatus())) {
+        if (!"CREATED".equals(booking.getStatus())) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
-                    "Only a booking with status \"Created\" can be confirmed; this booking is \"" + booking.getStatus() + "\".");
+                    "Only a booking with status \"CREATED\" can be confirmed; this booking is \"" + booking.getStatus() + "\".");
         }
         if (request.estimatedServiceFee() <= 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "estimatedServiceFee must be greater than 0.");
@@ -205,8 +205,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
         booking.setEstimatedServiceFee(request.estimatedServiceFee());
         booking.setEstimatedDurationMinutes(request.estimatedDurationMinutes());
-        booking.setStatus("Confirmed");
-        // TODO Milestone 2: inform SBP that the booking is Confirmed (4.M3) — SbpIntegrationPort is
+        booking.setStatus("CONFIRMED");
+        // TODO Milestone 2: inform SBP that the booking is CONFIRMED (4.M3) — SbpIntegrationPort is
         // currently inbound-only (SMT calling SBP's Rating/Statistics/Customer APIs); there is no
         // outbound "push to SBP" client yet, so this still needs its own adapter to be built.
         Booking saved = bookingRepository.save(booking);
@@ -221,13 +221,13 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         //   2. technicianExternalService.createAssignments(bookingId, technicianIds) — Booking
         //      never touches TechnicianAssignmentRepository directly (A.2.4).
         //   3. When technicianExternalService.areAllAssignmentsAccepted(bookingId) becomes true
-        //      (checked on a later call, e.g. after each accept webhook), set status "Scheduled"
+        //      (checked on a later call, e.g. after each accept webhook), set status "SCHEDULED"
         //      (3.3.M5) and notify (3.3.U2, 4.M3) with technician full names in the payload.
         throw new UnsupportedOperationException("Milestone 2");
     }
 
-    /** Created, Confirmed, Scheduled -> "Cancelled by Customer" (3.3.M1). */
-    private static final List<String> CANCELLABLE_TO_CANCELLED = List.of("Created", "Confirmed", "Scheduled");
+    /** CREATED, CONFIRMED, SCHEDULED -> "CANCELLED BY CUSTOMER" (3.3.M1). */
+    private static final List<String> CANCELLABLE_TO_CANCELLED = List.of("CREATED", "CONFIRMED", "SCHEDULED");
 
     @Override
     public BookingResponse cancel(String bookingId, CancelBookingRequest request) {
@@ -241,9 +241,9 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         String currentStatus = booking.getStatus();
         String newStatus;
         if (CANCELLABLE_TO_CANCELLED.contains(currentStatus)) {
-            newStatus = "Cancelled by Customer";
-        } else if ("Working".equals(currentStatus)) {
-            newStatus = "Terminated by Customer";
+            newStatus = "CANCELLED BY CUSTOMER";
+        } else if ("WORKING".equals(currentStatus)) {
+            newStatus = "TERMINATED BY CUSTOMER";
         } else {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Booking with status \"" + currentStatus + "\" cannot be cancelled.");
