@@ -41,7 +41,9 @@ public final class BookingMapper {
         );
     }
 
-    /** Exposed to SBP per 4.S1 — only the fields SBP is allowed to see (A.2.3). */
+    /** Exposed to SBP per 4.S1 — only the fields SBP is allowed to see (A.2.3).
+     *  Also consumed internally by Statistics via BookingExternalService (3.4.S3/M3) — serviceType
+     *  and serviceFee (material cost excluded) are included for revenue-by-service-type reporting. */
     public static BookingExternalDto toExternalDto(Booking booking) {
         Double totalCost = booking.getServiceFee() != null && booking.getMaterialCost() != null
                 ? booking.getServiceFee() + booking.getMaterialCost()
@@ -51,7 +53,9 @@ public final class BookingMapper {
                 booking.getCustomerId(),
                 booking.getStatus(),
                 booking.getPreferredDate(),
-                totalCost
+                totalCost,
+                booking.getServiceType(),
+                booking.getServiceFee()
         );
     }
 }
