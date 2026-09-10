@@ -12,6 +12,7 @@ const EMPTY_FORM = {
   availableStart: "",
   availableEnd: "",
   issueDescription: "",
+  requiredTechnicianCount: 1,
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -27,6 +28,13 @@ export default function BookingCreatePage() {
     return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
   }
 
+  function updateNumber(field) {
+    return (e) => {
+      const value = e.target.value;
+      setForm((prev) => ({ ...prev, [field]: value === "" ? "" : Number(value) }));
+    };
+  }
+
   function validate() {
     if (!form.customerId.trim()) return "Customer ID is required.";
     if (!form.serviceAddress.trim()) return 'Service address is required, e.g. "22 Le Loi, District 1, HCMC".';
@@ -35,6 +43,9 @@ export default function BookingCreatePage() {
     if (!form.availableStart || !form.availableEnd) return "Available start and end time are both required.";
     if (form.availableStart >= form.availableEnd) return "Available start time must be earlier than the end time.";
     if (!form.issueDescription.trim()) return 'Issue description is required, e.g. "Sink pipe is leaking".';
+    if (!Number.isInteger(form.requiredTechnicianCount) || form.requiredTechnicianCount < 1) {
+      return "Number of technicians required must be a whole number of at least 1.";
+    }
     return null;
   }
 
@@ -156,6 +167,23 @@ export default function BookingCreatePage() {
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1.5">
+                Technicians Required
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.requiredTechnicianCount}
+                onChange={updateNumber("requiredTechnicianCount")}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                How many technicians this job needs at once, e.g. 2 for a job that needs two people.
+              </p>
             </div>
 
             <div>

@@ -9,6 +9,7 @@ import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
+import com.fixinh.smt.modules.technician.dto.internal.TechnicianBookingResponse;
 import com.fixinh.smt.modules.technician.service.internal.TechnicianInternalService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -48,19 +49,31 @@ public class TechnicianController {
 
     @GetMapping("/{technicianId}/bookings")
     @PreAuthorize(OWN_TECHNICIAN)
-    public ApiResponse<List<BookingExternalDto>> myBookings(@PathVariable String technicianId) {
+    public ApiResponse<List<TechnicianBookingResponse>> myBookings(@PathVariable String technicianId) {
         return ApiResponse.ok(technicianInternalService.myBookings(technicianId));
+    }
+
+    @PatchMapping("/{technicianId}/bookings/{bookingId}/accept")
+    @PreAuthorize(OWN_TECHNICIAN)
+    public ApiResponse<Boolean> acceptAssignment(@PathVariable String technicianId, @PathVariable String bookingId) {
+        return ApiResponse.ok(technicianInternalService.acceptAssignment(technicianId, bookingId));
+    }
+
+    @PatchMapping("/{technicianId}/bookings/{bookingId}/reject")
+    @PreAuthorize(OWN_TECHNICIAN)
+    public ApiResponse<Boolean> rejectAssignment(@PathVariable String technicianId, @PathVariable String bookingId) {
+        return ApiResponse.ok(technicianInternalService.rejectAssignment(technicianId, bookingId));
     }
 
     @PatchMapping("/{technicianId}/bookings/{bookingId}/start")
     @PreAuthorize(OWN_TECHNICIAN)
-    public ApiResponse<TechnicianResponse> startWork(@PathVariable String technicianId, @PathVariable String bookingId) {
+    public ApiResponse<BookingExternalDto> startWork(@PathVariable String technicianId, @PathVariable String bookingId) {
         return ApiResponse.ok(technicianInternalService.startWork(technicianId, bookingId));
     }
 
     @PatchMapping("/{technicianId}/bookings/{bookingId}/complete")
     @PreAuthorize(OWN_TECHNICIAN)
-    public ApiResponse<TechnicianResponse> complete(@PathVariable String technicianId, @PathVariable String bookingId,
+    public ApiResponse<BookingExternalDto> complete(@PathVariable String technicianId, @PathVariable String bookingId,
                                                       @RequestParam double serviceFee, @RequestParam double materialCost,
                                                       @RequestParam String signedBillImageUrl) {
         return ApiResponse.ok(technicianInternalService.complete(technicianId, bookingId, serviceFee, materialCost, signedBillImageUrl));
@@ -68,7 +81,7 @@ public class TechnicianController {
 
     @PatchMapping("/{technicianId}/bookings/{bookingId}/abort")
     @PreAuthorize(OWN_TECHNICIAN)
-    public ApiResponse<TechnicianResponse> abort(@PathVariable String technicianId, @PathVariable String bookingId,
+    public ApiResponse<BookingExternalDto> abort(@PathVariable String technicianId, @PathVariable String bookingId,
                                                    @RequestParam String reason) {
         return ApiResponse.ok(technicianInternalService.abort(technicianId, bookingId, reason));
     }

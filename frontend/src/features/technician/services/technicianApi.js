@@ -43,3 +43,45 @@ export function fetchAvailableTechnicians({ date, start, end, durationMinutes })
     const params = new URLSearchParams({ date, start, end, durationMinutes });
     return api(`${API_ROUTES.TECHNICIANS}/available?${params.toString()}`);
 }
+
+/** Service Tier — talks to GET /api/v1/technicians/{technicianId}/bookings. */
+export function fetchMyBookings(technicianId) {
+  return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/bookings`);
+}
+
+/** Service Tier — talks to PATCH /api/v1/technicians/{technicianId}/bookings/{bookingId}/accept. */
+export function acceptAssignment(technicianId, bookingId) {
+  return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/bookings/${bookingId}/accept`, {
+    method: "PATCH",
+  });
+}
+
+/** Service Tier — talks to PATCH /api/v1/technicians/{technicianId}/bookings/{bookingId}/reject. */
+export function rejectAssignment(technicianId, bookingId) {
+  return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/bookings/${bookingId}/reject`, {
+    method: "PATCH",
+  });
+}
+
+/** Service Tier — talks to PATCH /api/v1/technicians/{technicianId}/bookings/{bookingId}/start. */
+export function startWork(technicianId, bookingId) {
+  return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/bookings/${bookingId}/start`, {
+    method: "PATCH",
+  });
+}
+
+/** Service Tier — talks to PATCH .../bookings/{bookingId}/complete?serviceFee=&materialCost=&signedBillImageUrl=. */
+export function completeBooking(technicianId, bookingId, { serviceFee, materialCost, signedBillImageUrl }) {
+  const params = new URLSearchParams({ serviceFee, materialCost, signedBillImageUrl });
+  return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/bookings/${bookingId}/complete?${params.toString()}`, {
+    method: "PATCH",
+  });
+}
+
+/** Service Tier — talks to PATCH .../bookings/{bookingId}/abort?reason=. */
+export function abortBooking(technicianId, bookingId, reason) {
+  const params = new URLSearchParams({ reason });
+  return api(`${API_ROUTES.TECHNICIANS}/${technicianId}/bookings/${bookingId}/abort?${params.toString()}`, {
+    method: "PATCH",
+  });
+}

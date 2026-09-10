@@ -66,8 +66,9 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     public BookingExternalDto createFromCustomer(String customerId, String serviceType, String issueDescription,
                                                    String serviceAddress, LocalDate preferredDate,
                                                    LocalTime availableStart, LocalTime availableEnd) {
+        // SBP-created bookings don't have a "how many technicians" concept on their side — default to 1.
         Booking booking = buildAndSaveBooking(customerId, serviceType, issueDescription, serviceAddress,
-                preferredDate, availableStart, availableEnd);
+                preferredDate, availableStart, availableEnd, 1);
         return BookingMapper.toExternalDto(booking);
     }
 
@@ -76,7 +77,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     @Override
     public BookingResponse create(BookingRequest request) {
         Booking booking = buildAndSaveBooking(request.customerId(), request.serviceType(), request.issueDescription(),
-                request.serviceAddress(), request.preferredDate(), request.availableStart(), request.availableEnd());
+                request.serviceAddress(), request.preferredDate(), request.availableStart(), request.availableEnd(),
+                request.requiredTechnicianCount());
         return BookingMapper.toResponse(booking);
     }
 
@@ -87,7 +89,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
      */
     private Booking buildAndSaveBooking(String customerId, String serviceType, String issueDescription,
                                          String serviceAddress, LocalDate preferredDate,
-                                         LocalTime availableStart, LocalTime availableEnd) {
+                                         LocalTime availableStart, LocalTime availableEnd,
+                                         Integer requiredTechnicianCount) {
         if (!StringUtils.hasText(customerId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "customerId is required: the booking must reference an existing customer.");
         }
@@ -112,6 +115,9 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         if (!availableStart.isBefore(availableEnd)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "availableStart (" + availableStart + ") must be earlier than availableEnd (" + availableEnd + ").");
         }
+        if (requiredTechnicianCount != null && requiredTechnicianCount < 1) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "requiredTechnicianCount must be at least 1.");
+        }
 
         Booking booking = Booking.builder()
                 .customerId(customerId)
@@ -121,6 +127,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                 .preferredDate(preferredDate)
                 .availableStart(availableStart)
                 .availableEnd(availableEnd)
+                .requiredTechnicianCount(requiredTechnicianCount != null ? requiredTechnicianCount : 1)
                 .status("CREATED")
                 .build();
         return bookingRepository.save(booking);
@@ -147,7 +154,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     private List<BookingResponse> listByStatuses(List<String> statuses) {
         return bookingRepository.findByStatusIn(statuses).stream()
                 .sorted(Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .map(this::toResponseWithAssignments)
                 .toList();
     }
 
@@ -162,8 +169,16 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         return bookingRepository.findAll().stream()
                 .filter(b -> matchesIdOrTechnician(b, needle))
                 .sorted(Comparator.comparing(Booking::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .map(this::toResponseWithAssignments)
                 .toList();
+    }
+
+    private BookingResponse toResponseWithAssignments(Booking booking) {
+        return BookingMapper.toResponse(
+                booking,
+                technicianExternalService.findAssignedTechnicianNames(booking.getId()),
+                technicianExternalService.countActiveAssignments(booking.getId())
+        );
     }
 
     private boolean matchesIdOrTechnician(Booking booking, String lowercaseNeedle) {
@@ -186,7 +201,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                 .filter(b -> from == null || (b.getCreatedAt() != null && !b.getCreatedAt().toLocalDate().isBefore(from)))
                 .filter(b -> to == null || (b.getCreatedAt() != null && !b.getCreatedAt().toLocalDate().isAfter(to)))
                 .sorted(byCreatedAt)
-                .map(booking -> BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(booking.getId())))
+                .map(this::toResponseWithAssignments)
                 .toList();
     }
 
@@ -214,18 +229,33 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         // outbound "push to SBP" client yet, so this still needs its own adapter to be built.
         Booking saved = bookingRepository.save(booking);
 
-        return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
+        // Auto-assign as many available technicians as this job needs (up to
+        // requiredTechnicianCount) right away — the Receptionist only needs "Assign Technician"
+        // as a manual top-up when auto-assign can't fully staff the job.
+        autoAssignTechnicians(saved);
+
+        return toResponseWithAssignments(saved);
+    }
+
+    /** Best-effort — silently assigns whoever is available up to requiredTechnicianCount and
+     *  leaves the rest for manual "Assign Technician" if nobody (or not enough) is available. */
+    private void autoAssignTechnicians(Booking booking) {
+        int required = booking.getRequiredTechnicianCount() != null ? booking.getRequiredTechnicianCount() : 1;
+
+        List<String> candidateIds = technicianExternalService
+                .findAvailable(booking.getPreferredDate(), booking.getAvailableStart(), booking.getAvailableEnd(), booking.getEstimatedDurationMinutes())
+                .stream()
+                .map(TechnicianExternalDto::technicianId)
+                .limit(required)
+                .toList();
+
+        if (!candidateIds.isEmpty()) {
+            technicianExternalService.createAssignments(booking.getId(), candidateIds);
+        }
     }
 
     @Override
     public BookingResponse assignTechnicians(String bookingId, List<String> technicianIds) {
-        // TODO Milestone 2:
-        //   1. technicianExternalService.findAvailable(...) (3.3.M3) to pick candidates.
-        //   2. technicianExternalService.createAssignments(bookingId, technicianIds) — Booking
-        //      never touches TechnicianAssignmentRepository directly (A.2.4).
-        //   3. When technicianExternalService.areAllAssignmentsAccepted(bookingId) becomes true
-        //      (checked on a later call, e.g. after each accept webhook), set status "SCHEDULED"
-        //      (3.3.M5) and notify (3.3.U2, 4.M3) with technician full names in the payload.
         Booking booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
 
@@ -235,6 +265,15 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
         if (technicianIds == null || technicianIds.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "At least one technicianId is required.");
+        }
+
+        int required = booking.getRequiredTechnicianCount() != null ? booking.getRequiredTechnicianCount() : 1;
+        int alreadyAssigned = technicianExternalService.countActiveAssignments(bookingId);
+
+        if (alreadyAssigned + technicianIds.size() > required) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "This booking only needs " + required + " technician(s); " + alreadyAssigned
+                            + " already assigned, so at most " + (required - alreadyAssigned) + " more can be added.");
         }
 
         // 3.3.M3 — defensively re-check availability server-side (UI already filters this,
@@ -257,7 +296,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         // ACCEPTED (3.3.M5, see tryMarkScheduled()).
         technicianExternalService.createAssignments(bookingId, technicianIds);
 
-        return BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(bookingId));
+        return toResponseWithAssignments(booking);
     }
 
     @Override
@@ -309,6 +348,70 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         // is implemented — calling it now would throw UnsupportedOperationException.
         Booking saved = bookingRepository.save(booking);
 
-        return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
+        return toResponseWithAssignments(saved);
+    }
+
+    @Override
+    public BookingExternalDto startWork(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!"SCHEDULED".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Only a booking with status \"SCHEDULED\" can be started; this booking is \"" + booking.getStatus() + "\".");
+        }
+
+        booking.setStatus("WORKING");
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toExternalDto(saved);
+    }
+
+    @Override
+    public BookingExternalDto completeWork(String bookingId, double serviceFee, double materialCost, String signedBillImageUrl) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!"WORKING".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Only a booking with status \"WORKING\" can be completed; this booking is \"" + booking.getStatus() + "\".");
+        }
+        if (serviceFee < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "serviceFee cannot be negative.");
+        }
+        if (materialCost < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "materialCost cannot be negative.");
+        }
+        if (!StringUtils.hasText(signedBillImageUrl)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "signedBillImageUrl is required to complete a booking.");
+        }
+
+        booking.setStatus("COMPLETED");
+        booking.setServiceFee(serviceFee);
+        booking.setMaterialCost(materialCost);
+        booking.setSignedBillImageUrl(signedBillImageUrl);
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toExternalDto(saved);
+    }
+
+    @Override
+    public BookingExternalDto abortWork(String bookingId, String reason) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!"WORKING".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Only a booking with status \"WORKING\" can be aborted; this booking is \"" + booking.getStatus() + "\".");
+        }
+        if (!StringUtils.hasText(reason)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "reason is required to abort a booking.");
+        }
+
+        booking.setStatus("ABORTED BY TECHNICIAN");
+        booking.setCancelReason(reason);
+        Booking saved = bookingRepository.save(booking);
+
+        return BookingMapper.toExternalDto(saved);
     }
 }

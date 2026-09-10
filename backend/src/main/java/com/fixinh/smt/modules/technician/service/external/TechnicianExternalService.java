@@ -28,7 +28,16 @@ public interface TechnicianExternalService {
      *  Booking uses this to decide when to flip status to "SCHEDULED". */
     boolean areAllAssignmentsAccepted(String bookingId);
 
+    /** Count of this booking's PENDING/ACCEPTED assignments (REJECTED doesn't count) — used to
+     *  cap manual/auto assignment at requiredTechnicianCount and to show "X/Y assigned" in the UI. */
+    int countActiveAssignments(String bookingId);
+
     /** Full names of technicians assigned to this booking, any assignment status (3.3.S4) —
      *  used by Booking's list endpoints. Booking must never read TechnicianAssignment directly (A.2.4). */
     List<String> findAssignedTechnicianNames(String bookingId);
+
+    /** Provisions a Technician profile (with the default Mon-Fri 08:00-20:00 schedule) for a
+     *  newly created TECHNICIAN staff account, so they can be assigned/scheduled immediately
+     *  without first visiting the schedule page. Idempotent — a no-op if one already exists. */
+    void createDefaultProfile(String staffId);
 }

@@ -4,6 +4,7 @@ import com.fixinh.smt.common.exception.ApiException;
 import com.fixinh.smt.common.exception.ResourceNotFoundException;
 import com.fixinh.smt.common.sharding.ShardKeyResolver;
 import com.fixinh.smt.common.sharding.ShardRegion;
+import com.fixinh.smt.common.security.RoleConfig;
 import com.fixinh.smt.modules.auth.service.external.AuthExternalService;
 import com.fixinh.smt.modules.staff.dto.external.StaffExternalDto;
 import com.fixinh.smt.modules.staff.dto.internal.StaffRequest;
@@ -13,7 +14,9 @@ import com.fixinh.smt.modules.staff.mapper.StaffMapper;
 import com.fixinh.smt.modules.staff.repository.StaffShardRepository;
 import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.staff.service.internal.StaffInternalService;
+import com.fixinh.smt.modules.technician.service.external.TechnicianExternalService;
 import com.fixinh.smt.common.util.ValidationUtil;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -28,12 +31,16 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
     private final StaffShardRepository staffShardRepository;
     private final AuthExternalService authExternalService;
     private final ShardKeyResolver shardKeyResolver;
+    private final TechnicianExternalService technicianExternalService;
 
     public StaffServiceImpl(StaffShardRepository staffShardRepository, AuthExternalService authExternalService,
-                             ShardKeyResolver shardKeyResolver) {
+                             ShardKeyResolver shardKeyResolver,
+                             @Lazy // Technician module depends back on StaffExternalService — avoids a circular bean cycle
+                             TechnicianExternalService technicianExternalService) {
         this.staffShardRepository = staffShardRepository;
         this.authExternalService = authExternalService;
         this.shardKeyResolver = shardKeyResolver;
+        this.technicianExternalService = technicianExternalService;
     }
 
 
@@ -100,6 +107,10 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
         Staff saved = staffShardRepository.insert(staff, region);
         authExternalService.createCredentials(saved.getId(), saved.getEmail(), request.password(), saved.getRole());
+
+        if (saved.getRole() == RoleConfig.TECHNICIAN) {
+            technicianExternalService.createDefaultProfile(saved.getId());
+        }
 
         return StaffMapper.toResponse(saved);
     }

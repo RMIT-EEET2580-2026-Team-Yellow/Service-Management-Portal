@@ -27,6 +27,7 @@ import com.fixinh.smt.modules.technician.entity.TechnicianAvailabilityPeriod;
 import com.fixinh.smt.modules.technician.repository.TechnicianAvailabilityPeriodRepository;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
+import com.fixinh.smt.modules.technician.dto.internal.TechnicianBookingResponse;
 import com.fixinh.smt.modules.technician.entity.TechnicianScheduleChangeRequest;
 import com.fixinh.smt.modules.technician.repository.TechnicianScheduleChangeRequestRepository;
 import com.fixinh.smt.common.exception.ApiException;
@@ -36,6 +37,7 @@ import org.springframework.http.HttpStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.time.DayOfWeek;
@@ -49,6 +51,10 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
      *  the Technician only picks which 5 of 7 days they work, not custom hours. */
     private static final LocalTime FIXED_DAILY_START = LocalTime.of(8, 0);
     private static final LocalTime FIXED_DAILY_END = LocalTime.of(20, 0);
+
+    /** Default base schedule a new Technician profile is created with (Mon-Fri, 08:00-20:00) —
+     *  they can request a change afterwards via the schedule-change-request flow. */
+    private static final List<String> DEFAULT_WORKING_DAYS = List.of("MON", "TUE", "WED", "THU", "FRI");
 
     private final TechnicianRepository technicianRepository;
     private final TechnicianAvailabilityRepository technicianAvailabilityRepository;
@@ -314,17 +320,53 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
             throw new ApiException(HttpStatus.BAD_REQUEST, "Requested time window is shorter than the required duration");
         }
 
-        List<TechnicianAvailabilityPeriod> periods = technicianAvailabilityPeriodRepository.findByDateAndActiveTrue(date);
+        String dayCode = toDayCode(date.getDayOfWeek());
 
-        return periods.stream()
+        // Base signal: the technician's recurring weekly schedule covers this day-of-week and
+        // the requested window fits inside their daily hours.
+        Set<String> scheduleMatches = technicianAvailabilityRepository.findAll().stream()
+            .filter(availability -> availability.getWorkingDays() != null
+                && availability.getWorkingDays().stream().anyMatch(day -> dayCode.equalsIgnoreCase(day)))
+            .filter(availability -> availability.getDailyStart() != null && availability.getDailyEnd() != null)
+            .filter(availability -> !availability.getDailyStart().isAfter(start) && !availability.getDailyEnd().isBefore(end))
+            .map(TechnicianAvailability::getTechnicianId)
+            .collect(java.util.stream.Collectors.toSet());
+
+        // Extra signal: a one-off TechnicianAvailabilityPeriod for this exact date — covers a
+        // technician picking up hours outside their normal weekly schedule.
+        Set<String> periodMatches = technicianAvailabilityPeriodRepository.findByDateAndActiveTrue(date).stream()
             .filter(period -> !period.getStartTime().isAfter(start))
             .filter(period -> !period.getEndTime().isBefore(end))
             .map(TechnicianAvailabilityPeriod::getTechnicianId)
-            .distinct()
+            .collect(java.util.stream.Collectors.toSet());
+
+        Set<String> candidateIds = new HashSet<>(scheduleMatches);
+        candidateIds.addAll(periodMatches);
+
+        return candidateIds.stream()
+            .filter(technicianId -> !isAlreadyBooked(technicianId, date, start, end))
             .map(technicianRepository::findById)
             .flatMap(Optional::stream)
             .map(this::toExternalDto)
             .toList();
+    }
+
+    /** True if this technician already has a PENDING/ACCEPTED assignment whose booking overlaps
+     *  the requested date+window — keeps findAvailable from double-booking someone. */
+    private boolean isAlreadyBooked(String technicianId, LocalDate date, LocalTime start, LocalTime end) {
+        return technicianAssignmentRepository.findByTechnicianId(technicianId).stream()
+            .filter(assignment -> "PENDING".equals(assignment.getStatus()) || "ACCEPTED".equals(assignment.getStatus()))
+            .map(assignment -> bookingExternalService.findById(assignment.getBookingId()))
+            .flatMap(Optional::stream)
+            .anyMatch(booking -> date.equals(booking.preferredDate())
+                && timeRangesOverlap(booking.availableStart(), booking.availableEnd(), start, end));
+    }
+
+    private boolean timeRangesOverlap(LocalTime aStart, LocalTime aEnd, LocalTime bStart, LocalTime bEnd) {
+        if (aStart == null || aEnd == null) {
+            return false;
+        }
+        return aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
     }
 
     @Override 
@@ -334,15 +376,61 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
 
     @Override
     public boolean acceptAssignment(String technicianId, String bookingId) {
-        // TODO Milestone 2: find the TechnicianAssignment row for (bookingId, technicianId),
-        // set status="ACCEPTED" + respondedAt=now, save.
-        throw new UnsupportedOperationException("Milestone 2");
+        TechnicianAssignment assignment = requirePendingAssignment(technicianId, bookingId);
+
+        assignment.setStatus("ACCEPTED");
+        assignment.setRespondedAt(LocalDateTime.now());
+        technicianAssignmentRepository.save(assignment);
+
+        if (areAllAssignmentsAccepted(bookingId)) {
+            // Flips the booking CONFIRMED -> SCHEDULED once every assigned technician has
+            // accepted (3.3.M5) — a no-op (empty Optional) if some other assignment is still
+            // pending, which is expected and not an error here.
+            bookingExternalService.tryMarkScheduled(bookingId);
+        }
+
+        return true;
     }
 
     @Override
     public boolean rejectAssignment(String technicianId, String bookingId) {
-        // TODO Milestone 2: same lookup as acceptAssignment, set status="REJECTED" + respondedAt=now.
-        throw new UnsupportedOperationException("Milestone 2");
+        TechnicianAssignment assignment = requirePendingAssignment(technicianId, bookingId);
+
+        assignment.setStatus("REJECTED");
+        assignment.setRespondedAt(LocalDateTime.now());
+        technicianAssignmentRepository.save(assignment);
+
+        return true;
+    }
+
+    private TechnicianAssignment requirePendingAssignment(String technicianId, String bookingId) {
+        TechnicianAssignment assignment = technicianAssignmentRepository
+            .findByBookingIdAndTechnicianId(bookingId, technicianId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "No assignment found for technician " + technicianId + " on booking " + bookingId));
+
+        if (!"PENDING".equals(assignment.getStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                "This assignment has already been " + assignment.getStatus().toLowerCase());
+        }
+
+        return assignment;
+    }
+
+    /** Confirms this technician was actually assigned and accepted before letting them drive the
+     *  booking's Working/Completed/Aborted lifecycle (defends against forging a bookingId onto
+     *  someone else's job — role/ownership of the technicianId itself is already enforced by
+     *  {@code @PreAuthorize(OWN_TECHNICIAN)} at the controller). */
+    private void requireAcceptedAssignment(String technicianId, String bookingId) {
+        TechnicianAssignment assignment = technicianAssignmentRepository
+            .findByBookingIdAndTechnicianId(bookingId, technicianId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "No assignment found for technician " + technicianId + " on booking " + bookingId));
+
+        if (!"ACCEPTED".equals(assignment.getStatus())) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                "Technician " + technicianId + " has not accepted booking " + bookingId);
+        }
     }
 
     @Override
@@ -351,7 +439,17 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
             throw new ApiException(HttpStatus.BAD_REQUEST, "Technician IDs are required");
         }
 
+        // Idempotent: skip anyone who already has a live (PENDING/ACCEPTED) assignment on this
+        // booking, so calling this twice (e.g. auto-assign then a manual top-up) never double-books
+        // the same technician onto the same job.
+        Set<String> alreadyAssigned = technicianAssignmentRepository.findByBookingId(bookingId).stream()
+            .filter(a -> "PENDING".equals(a.getStatus()) || "ACCEPTED".equals(a.getStatus()))
+            .map(TechnicianAssignment::getTechnicianId)
+            .collect(java.util.stream.Collectors.toSet());
+
         List<TechnicianAssignment> assignments = technicianIds.stream()
+            .distinct()
+            .filter(technicianId -> !alreadyAssigned.contains(technicianId))
             .map(technicianId -> TechnicianAssignment.builder()
                 .bookingId(bookingId)
                 .technicianId(technicianId)
@@ -366,6 +464,13 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
     public boolean areAllAssignmentsAccepted(String bookingId) {
         List<TechnicianAssignment> rows = technicianAssignmentRepository.findByBookingId(bookingId);
         return !rows.isEmpty() && rows.stream().allMatch(a -> "ACCEPTED".equals(a.getStatus()));
+    }
+
+    @Override
+    public int countActiveAssignments(String bookingId) {
+        return (int) technicianAssignmentRepository.findByBookingId(bookingId).stream()
+            .filter(a -> "PENDING".equals(a.getStatus()) || "ACCEPTED".equals(a.getStatus()))
+            .count();
     }
 
     @Override
@@ -399,8 +504,7 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         List<String> normalWorkingDays = validateWorkingDays(request.workingDays());
         validateDailyHours(request.dailyStart(), request.dailyEnd());
 
-        Technician technician = technicianRepository.findByStaffId(request.staffId())
-            .orElseGet(() -> technicianRepository.save(Technician.builder().staffId(request.staffId()).build()));
+        Technician technician = getOrCreateTechnician(request.staffId());
 
         TechnicianAvailability availability = technicianAvailabilityRepository
             .findByTechnicianId(technician.getId())
@@ -423,17 +527,44 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
         StaffExternalDto staff = staffExternalService.findById(staffId)
             .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + staffId));
 
-        Technician technician = technicianRepository.findByStaffId(staffId)
-            .orElseThrow(() -> new ResourceNotFoundException("Technician not found for staff: " + staffId));
+        if (staff.role() != RoleConfig.TECHNICIAN) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Staff " + staffId + " is not a technician");
+        }
 
-        TechnicianAvailability availability = technicianAvailabilityRepository
-            .findByTechnicianId(technician.getId())
-            .orElseThrow(() -> new ApiException(
-                HttpStatus.BAD_REQUEST,
-                "Technician does not have a base schedule"
-            ));
+        // Self-heal: a TECHNICIAN staff account may not have a Technician profile yet (e.g. it
+        // was created before this account ever visited the schedule page, or before this
+        // auto-provisioning existed) — provision one with the default Mon-Fri 08:00-20:00
+        // schedule instead of failing with "Technician not found".
+        Technician technician = getOrCreateTechnician(staffId);
+        TechnicianAvailability availability = getOrCreateDefaultAvailability(technician.getId());
 
         return toTechnicianResponse(technician, availability, staff.fullName());
+    }
+
+    @Override
+    public void createDefaultProfile(String staffId) {
+        Technician technician = getOrCreateTechnician(staffId);
+        getOrCreateDefaultAvailability(technician.getId());
+    }
+
+    private Technician getOrCreateTechnician(String staffId) {
+        return technicianRepository.findByStaffId(staffId)
+            .orElseGet(() -> technicianRepository.save(Technician.builder().staffId(staffId).build()));
+    }
+
+    /** Provisions the Mon-Fri 08:00-20:00 default schedule the first time a Technician profile
+     *  needs one — a Technician can move off this default via the schedule-change-request flow. */
+    private TechnicianAvailability getOrCreateDefaultAvailability(String technicianId) {
+        return technicianAvailabilityRepository.findByTechnicianId(technicianId)
+            .orElseGet(() -> technicianAvailabilityRepository.save(
+                TechnicianAvailability.builder()
+                    .technicianId(technicianId)
+                    .workingDays(DEFAULT_WORKING_DAYS)
+                    .dailyStart(FIXED_DAILY_START)
+                    .dailyEnd(FIXED_DAILY_END)
+                    .currentlyAvailable(true)
+                    .build()
+            ));
     }
 
     private List<String> validateWorkingDays(List<String> workingDays) {
@@ -664,33 +795,57 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
     }
 
     @Override
-    public List<BookingExternalDto> myBookings(String technicianId) {
-        // TODO: Filter more bookings with other status as needed (Right now it's only scheduled bookings filtered)
+    public List<TechnicianBookingResponse> myBookings(String technicianId) {
         technicianRepository.findById(technicianId)
             .orElseThrow(() -> new ResourceNotFoundException("Technician not found with ID: " + technicianId));
 
         return technicianAssignmentRepository.findByTechnicianId(technicianId).stream()
-            .map(TechnicianAssignment::getBookingId)
-            .distinct()
-            .map(bookingExternalService::findById)
-            .flatMap(Optional::stream)
-            .filter(booking -> "SCHEDULED".equals(booking.status()))
+            .map(assignment -> bookingExternalService.findById(assignment.getBookingId())
+                .map(booking -> toTechnicianBookingResponse(assignment, booking))
+                .orElse(null))
+            .filter(java.util.Objects::nonNull)
+            .sorted(Comparator.comparing(
+                TechnicianBookingResponse::preferredDate,
+                Comparator.nullsLast(Comparator.naturalOrder())
+            ).reversed())
             .toList();
     }
 
-    @Override
-    public TechnicianResponse startWork(String technicianId, String bookingId) {
-        throw new UnsupportedOperationException("Milestone 2");
+    private TechnicianBookingResponse toTechnicianBookingResponse(
+        TechnicianAssignment assignment,
+        BookingExternalDto booking
+    ) {
+        return new TechnicianBookingResponse(
+            assignment.getId(),
+            booking.bookingId(),
+            assignment.getStatus(),
+            booking.status(),
+            booking.serviceType(),
+            booking.issueDescription(),
+            booking.serviceAddress(),
+            booking.preferredDate(),
+            booking.availableStart(),
+            booking.availableEnd(),
+            booking.totalCost()
+        );
     }
 
     @Override
-    public TechnicianResponse complete(String technicianId, String bookingId, double serviceFee,
+    public BookingExternalDto startWork(String technicianId, String bookingId) {
+        requireAcceptedAssignment(technicianId, bookingId);
+        return bookingExternalService.startWork(bookingId);
+    }
+
+    @Override
+    public BookingExternalDto complete(String technicianId, String bookingId, double serviceFee,
                                         double materialCost, String signedBillImageUrl) {
-        throw new UnsupportedOperationException("Milestone 2");
+        requireAcceptedAssignment(technicianId, bookingId);
+        return bookingExternalService.completeWork(bookingId, serviceFee, materialCost, signedBillImageUrl);
     }
 
     @Override
-    public TechnicianResponse abort(String technicianId, String bookingId, String reason) {
-        throw new UnsupportedOperationException("Milestone 2");
+    public BookingExternalDto abort(String technicianId, String bookingId, String reason) {
+        requireAcceptedAssignment(technicianId, bookingId);
+        return bookingExternalService.abortWork(bookingId, reason);
     }
 }

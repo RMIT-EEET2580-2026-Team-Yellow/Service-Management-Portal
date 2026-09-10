@@ -97,6 +97,17 @@ export default function BookingDetailPanel({
         </div>
       )}
 
+      {selected.requiredTechnicianCount != null && (
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="text-[10px] font-bold uppercase text-gray-400 mb-2.5">
+            Technicians Needed
+          </div>
+          <div className="text-xs">
+            <b>{selected.activeAssignmentCount}</b> / {selected.requiredTechnicianCount} assigned
+          </div>
+        </div>
+      )}
+
       {selected.technicians && (
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-[10px] font-bold uppercase text-gray-400 mb-2.5">
@@ -129,14 +140,16 @@ export default function BookingDetailPanel({
             Confirm Booking
           </button>
         )}
-        {tab === "active" && selected.status === "CONFIRMED" && (
-          <button
-            onClick={onAssignTechnician}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-lg"
-          >
-            Assign Technician
-          </button>
-        )}
+        {tab === "active" &&
+          selected.status === "CONFIRMED" &&
+          selected.activeAssignmentCount < selected.requiredTechnicianCount && (
+            <button
+              onClick={onAssignTechnician}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-lg"
+            >
+              Assign Technician
+            </button>
+          )}
         {tab === "active" &&
           ["CREATED", "CONFIRMED", "SCHEDULED", "WORKING"].includes(selected.status) && (
             <button
