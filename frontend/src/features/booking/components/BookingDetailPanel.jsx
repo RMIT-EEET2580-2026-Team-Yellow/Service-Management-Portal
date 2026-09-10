@@ -30,6 +30,12 @@ export default function BookingDetailPanel({
             <span className="text-gray-400 block text-[10px] mb-0.5">Preferred Date</span>
             <b>{selected.preferredDate}</b>
           </div>
+          {selected.availableWindow && (
+            <div>
+              <span className="text-gray-400 block text-[10px] mb-0.5">Available Window</span>
+              <b>{selected.availableWindow}</b>
+            </div>
+          )}
           <div>
             <span className="text-gray-400 block text-[10px] mb-0.5">Creation Date</span>
             <b>{selected.creationDate}</b>
