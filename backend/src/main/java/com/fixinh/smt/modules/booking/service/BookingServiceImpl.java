@@ -262,33 +262,34 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         return Optional.of(BookingMapper.toExternalDto(saved));
     }
 
+    /** Created, Confirmed, Scheduled -> "Cancelled by Customer" (3.3.M1). */
+    private static final List<String> CANCELLABLE_TO_CANCELLED = List.of("Created", "Confirmed", "Scheduled");
+
     @Override
     public BookingResponse cancel(String bookingId, CancelBookingRequest request) {
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
 
         if (!StringUtils.hasText(request.reason())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "reason is required to cancel a booking.");
         }
 
+        String currentStatus = booking.getStatus();
         String newStatus;
-        switch (booking.getStatus()) {
-            case "Created", "Confirmed", "Scheduled" -> newStatus = "Cancelled by Customer";
-            case "Working" -> {
-                // 3.3.M1 — work already started, evidence images are mandatory.
-                if (request.evidenceImageUrls() == null || request.evidenceImageUrls().isEmpty()) {
-                    throw new ApiException(HttpStatus.BAD_REQUEST, "evidenceImageUrls is required to terminate a booking that is already \"Working\".");
-                }
-
-                newStatus = "Terminated by Customer";
-            }
-
-            default -> throw new ApiException(HttpStatus.BAD_REQUEST, "A booking with status \"" + booking.getStatus() + "\" cannot be cancelled.");
+        if (CANCELLABLE_TO_CANCELLED.contains(currentStatus)) {
+            newStatus = "Cancelled by Customer";
+        } else if ("Working".equals(currentStatus)) {
+            newStatus = "Terminated by Customer";
+        } else {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Booking with status \"" + currentStatus + "\" cannot be cancelled.");
         }
 
         booking.setStatus(newStatus);
         booking.setCancelReason(request.reason());
         booking.setCancelEvidenceImageUrls(request.evidenceImageUrls());
+        // TODO Milestone 2: notify (3.3.U2) once NotificationExternalService.notifyStatusChange
+        // is implemented — calling it now would throw UnsupportedOperationException.
         Booking saved = bookingRepository.save(booking);
 
         return BookingMapper.toResponse(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));

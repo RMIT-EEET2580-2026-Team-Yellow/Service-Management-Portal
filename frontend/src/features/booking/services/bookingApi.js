@@ -27,6 +27,14 @@ export function confirmBooking(bookingId, payload) {
   });
 }
 
+/** Service Tier — talks to PATCH /api/v1/bookings/{bookingId}/cancel (3.3.M1). */
+export function cancelBooking(bookingId, payload) {
+  return api(`${API_ROUTES.BOOKINGS}/${bookingId}/cancel`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 /** Service Tier — talks to GET /api/v1/bookings/filter (3.3.M10).*/
 export function fetchFilteredBookings({ serviceType, from, sort } = {}) {
   const params = new URLSearchParams();

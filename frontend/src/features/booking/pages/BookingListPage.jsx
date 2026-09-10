@@ -14,6 +14,14 @@ import {
 } from "../bookingHelpers";
 import { useBookings } from "../../../common/hooks/useBookings";
 
+/**
+ * Active/Past bookings are fetched from GET /api/v1/bookings/active|past (3.3.S3-S5, M2).
+ * Confirm is wired to PATCH .../confirm (3.3.S6) and Cancel to PATCH .../cancel (3.3.M1).
+ * Active tab is further filtered via GET .../filter (3.3.M10). Assign is still MOCK ONLY —
+ * that backend endpoint is still a Milestone 2 stub.
+ * Pure filter helpers live in bookingHelpers.js, JSX for the two columns lives
+ * in components/BookingTable.jsx and components/BookingDetailPanel.jsx.
+ */
 export default function BookingListPage() {
   const navigate = useNavigate();
   const {
@@ -30,6 +38,9 @@ export default function BookingListPage() {
     confirm,
     confirming,
     confirmError,
+    cancel,
+    cancelling,
+    cancelError,
     assign,
     assigning,
     assignError
@@ -177,12 +188,14 @@ export default function BookingListPage() {
       />
 
       <CancelBookingModal
+        key={cancellingBooking?.id}
         booking={cancellingBooking}
+        cancelling={cancelling}
+        cancelError={cancelError}
         onBack={() => setCancellingBooking(null)}
-        onConfirm={() => {
-          // MOCK ONLY — real version calls PATCH /api/v1/bookings/{id}/cancel
-          // (creates a BookingCancellation record, same pattern as /assign).
-          setCancellingBooking(null);
+        onConfirm={async (reason) => {
+          const result = await cancel(cancellingBooking.id, { reason, evidenceImageUrls: [] });
+          if (result) setCancellingBooking(null);
         }}
       />
     </div>
