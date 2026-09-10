@@ -229,8 +229,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         Booking booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
 
-        if (!"Confirmed".equals(booking.getStatus())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Only a booking with status \"Confirmed\" can be assigned technicians; this booking is \"" + booking.getStatus() + "\".");
+        if (!"CONFIRMED".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Only a booking with status \"CONFIRMED\" can be assigned technicians; this booking is \"" + booking.getStatus() + "\".");
         }
 
         if (technicianIds == null || technicianIds.isEmpty()) {
@@ -265,15 +265,15 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         Booking booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
 
-        if (!"Confirmed".equals(booking.getStatus())) {
-            return Optional.empty(); // Booking is already Scheduled/Working or not assigned
+        if (!"CONFIRMED".equals(booking.getStatus())) {
+            return Optional.empty(); // Booking is already SCHEDULED/WORKING or not assigned
         }
 
         if (!technicianExternalService.areAllAssignmentsAccepted(bookingId)) {
             return Optional.empty(); // Still waiting for technician(s) to accept assignment
         }
 
-        booking.setStatus("Scheduled");
+        booking.setStatus("SCHEDULED");
         Booking saved = bookingRepository.save(booking);
         
         return Optional.of(BookingMapper.toExternalDto(saved));

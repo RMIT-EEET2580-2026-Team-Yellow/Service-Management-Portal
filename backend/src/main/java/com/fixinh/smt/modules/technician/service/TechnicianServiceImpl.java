@@ -674,7 +674,7 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
             .distinct()
             .map(bookingExternalService::findById)
             .flatMap(Optional::stream)
-            .filter(booking -> "Scheduled".equals(booking.status()))
+            .filter(booking -> "SCHEDULED".equals(booking.status()))
             .toList();
     }
 
