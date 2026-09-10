@@ -157,6 +157,9 @@ export const {
   fetchFilteredFailure,
   assignBookingStart,
   assignBookingSuccess,
-  assignBookingFailure
+  assignBookingFailure,
+  searchBookingsStart,
+  searchBookingsSuccess,
+  searchBookingsFailure
 } = bookingSlice.actions;
 export default bookingSlice.reducer;

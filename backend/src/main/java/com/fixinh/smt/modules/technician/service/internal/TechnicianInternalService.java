@@ -20,7 +20,7 @@ public interface TechnicianInternalService {
 
     TechnicianResponse getByStaffId(String staffId);
 
-    List<TechnicianResponse> myBookings(String technicianId);
+    List<BookingExternalDto> myBookings(String technicianId);
 
     TechnicianResponse startWork(String technicianId, String bookingId);
 

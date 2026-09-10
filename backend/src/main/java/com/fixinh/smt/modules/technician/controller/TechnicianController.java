@@ -48,7 +48,6 @@ public class TechnicianController {
 
     @GetMapping("/{technicianId}/bookings")
     @PreAuthorize(OWN_TECHNICIAN)
-    public ApiResponse<List<TechnicianResponse>> myBookings(@PathVariable String technicianId) {
     public ApiResponse<List<BookingExternalDto>> myBookings(@PathVariable String technicianId) {
         return ApiResponse.ok(technicianInternalService.myBookings(technicianId));
     }
