@@ -21,6 +21,9 @@ const bookingSlice = createSlice({
 
     cancelling: false,
     cancelError: null,
+
+    assigning: false,
+    assignError: null
   },
   reducers: {
     createBookingStart(state) {
@@ -68,6 +71,22 @@ const bookingSlice = createSlice({
     confirmBookingFailure(state, action) {
       state.confirming = false;
       state.confirmError = action.payload;
+    },
+    assignBookingStart(state, action) {
+      state.assigning = true;
+      state.assignError = null;
+    },
+    assignBookingSuccess(state, action) {
+      state.assigning = false;
+      const updated = action.payload;
+      const index = state.active.findIndex((booking) => booking.id === updated.id);
+      if (index !== -1) {
+        state.active[index] = updated;
+      }
+    },
+    assignBookingFailure(state, active) {
+      state.assigning = false;
+      state.assignError = active.payload;
     },
 
     cancelBookingStart(state) {
@@ -119,5 +138,8 @@ export const {
   fetchFilteredStart,
   fetchFilteredSuccess,
   fetchFilteredFailure,
+  assignBookingStart,
+  assignBookingSuccess,
+  assignBookingFailure
 } = bookingSlice.actions;
 export default bookingSlice.reducer;

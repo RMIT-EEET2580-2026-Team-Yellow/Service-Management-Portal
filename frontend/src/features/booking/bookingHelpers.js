@@ -34,6 +34,8 @@ export function toDisplayBooking(booking) {
       booking.availableStart && booking.availableEnd
         ? `${formatTime(booking.availableStart)} – ${formatTime(booking.availableEnd)}`
         : null,
+    availableStartRaw: booking.availableStart,
+    availableEndRaw: booking.availableEnd,
     suggestedFee: booking.estimatedServiceFee,
     suggestedDuration: booking.estimatedDurationMinutes,
     serviceFee: booking.estimatedServiceFee,
