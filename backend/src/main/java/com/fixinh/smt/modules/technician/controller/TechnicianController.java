@@ -1,8 +1,10 @@
 package com.fixinh.smt.modules.technician.controller;
 
 import com.fixinh.smt.common.web.ApiResponse;
+import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
+import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
@@ -47,6 +49,7 @@ public class TechnicianController {
     @GetMapping("/{technicianId}/bookings")
     @PreAuthorize(OWN_TECHNICIAN)
     public ApiResponse<List<TechnicianResponse>> myBookings(@PathVariable String technicianId) {
+    public ApiResponse<List<BookingExternalDto>> myBookings(@PathVariable String technicianId) {
         return ApiResponse.ok(technicianInternalService.myBookings(technicianId));
     }
 
@@ -69,6 +72,15 @@ public class TechnicianController {
     public ApiResponse<TechnicianResponse> abort(@PathVariable String technicianId, @PathVariable String bookingId,
                                                    @RequestParam String reason) {
         return ApiResponse.ok(technicianInternalService.abort(technicianId, bookingId, reason));
+    }
+
+    @GetMapping("/available")
+    public ApiResponse<List<TechnicianExternalDto>> findAvailable(
+            @RequestParam java.time.LocalDate date,
+            @RequestParam java.time.LocalTime start,
+            @RequestParam java.time.LocalTime end,
+            @RequestParam int durationMinutes) {
+        return ApiResponse.ok(technicianInternalService.findAvailableTechnicians(date, start, end, durationMinutes));
     }
 
     // Periods

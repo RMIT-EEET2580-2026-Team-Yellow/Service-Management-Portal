@@ -8,6 +8,7 @@ package com.fixinh.smt.modules.booking.service;
 import com.fixinh.smt.common.exception.ApiException;
 import com.fixinh.smt.common.exception.ResourceNotFoundException;
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
+import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
 import com.fixinh.smt.modules.booking.dto.internal.*;
 import com.fixinh.smt.modules.booking.entity.Booking;
 import com.fixinh.smt.modules.booking.mapper.BookingMapper;
@@ -39,9 +40,10 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     private final TechnicianExternalService technicianExternalService;
     private final NotificationExternalService notificationExternalService;
 
-    public BookingServiceImpl(BookingRepository bookingRepository,
-                               TechnicianExternalService technicianExternalService,
-                               NotificationExternalService notificationExternalService) {
+    public BookingServiceImpl(
+        BookingRepository bookingRepository,
+        TechnicianExternalService technicianExternalService,
+        NotificationExternalService notificationExternalService) {
         this.bookingRepository = bookingRepository;
         this.technicianExternalService = technicianExternalService;
         this.notificationExternalService = notificationExternalService;
@@ -51,7 +53,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public Optional<BookingExternalDto> findById(String bookingId) {
-        throw new UnsupportedOperationException("Milestone 2");
+        return bookingRepository.findById(bookingId)
+            .map(BookingMapper::toExternalDto);
     }
 
     @Override
@@ -223,7 +226,57 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         //   3. When technicianExternalService.areAllAssignmentsAccepted(bookingId) becomes true
         //      (checked on a later call, e.g. after each accept webhook), set status "SCHEDULED"
         //      (3.3.M5) and notify (3.3.U2, 4.M3) with technician full names in the payload.
-        throw new UnsupportedOperationException("Milestone 2");
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+        if (!"Confirmed".equals(booking.getStatus())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Only a booking with status \"Confirmed\" can be assigned technicians; this booking is \"" + booking.getStatus() + "\".");
+        }
+
+        if (technicianIds == null || technicianIds.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "At least one technicianId is required.");
+        }
+
+        // 3.3.M3 — defensively re-check availability server-side (UI already filters this,
+        // but never trust the client for the actual write).
+        List<String> availableIds = technicianExternalService
+                .findAvailable(booking.getPreferredDate(), booking.getAvailableStart(), booking.getAvailableEnd(), booking.getEstimatedDurationMinutes())
+                .stream()
+                .map(TechnicianExternalDto::technicianId)
+                .toList();
+
+        List<String> notAvailable = technicianIds.stream()
+                .filter(id -> !availableIds.contains(id))
+                .toList();
+
+        if (!notAvailable.isEmpty()) {
+            throw new ApiException(HttpStatus.CONFLICT, "These technicians are not available for the requested window: " + notAvailable);
+        }
+
+        // status stays "Confirmed" — only flips to "Scheduled" once ALL assignments are
+        // ACCEPTED (3.3.M5, see tryMarkScheduled()).
+        technicianExternalService.createAssignments(bookingId, technicianIds);
+
+        return BookingMapper.toResponse(booking, technicianExternalService.findAssignedTechnicianNames(bookingId));
+    }
+
+    @Override
+    public Optional<BookingExternalDto> tryMarkScheduled(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+
+        if (!"Confirmed".equals(booking.getStatus())) {
+            return Optional.empty(); // Booking is already Scheduled/Working or not assigned
+        }
+
+        if (!technicianExternalService.areAllAssignmentsAccepted(bookingId)) {
+            return Optional.empty(); // Still waiting for technician(s) to accept assignment
+        }
+
+        booking.setStatus("Scheduled");
+        Booking saved = bookingRepository.save(booking);
+        
+        return Optional.of(BookingMapper.toExternalDto(saved));
     }
 
     /** CREATED, CONFIRMED, SCHEDULED -> "CANCELLED BY CUSTOMER" (3.3.M1). */

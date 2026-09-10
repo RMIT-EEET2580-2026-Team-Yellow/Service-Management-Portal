@@ -52,6 +52,8 @@ export function useBookings() {
     confirmError,
     cancelling,
     cancelError,
+    assigning,
+    assignError
   } = useSelector((state) => state.booking);
 
   const create = useCallback(
@@ -140,6 +142,17 @@ export function useBookings() {
         dispatch(searchBookingsSuccess(response.data));
       } catch (err) {
         dispatch(searchBookingsFailure(err.message));
+  const assign = useCallback(
+    async (bookingId, technicianIds) => {
+      dispatch(assignBookingStart());
+
+      try {
+        const response = await bookingApi.assignTechnicians(bookingId, technicianIds);
+        dispatch(assignBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(assignBookingFailure(err.message));
+        return null;
       }
     },
     [dispatch]
@@ -169,5 +182,8 @@ export function useBookings() {
     cancelling,
     cancelError,
     cancel,
+    assigning,
+    assignError,
+    assign
   };
 }

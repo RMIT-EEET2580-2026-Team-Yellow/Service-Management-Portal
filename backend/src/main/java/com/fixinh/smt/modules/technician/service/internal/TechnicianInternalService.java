@@ -2,6 +2,8 @@ package com.fixinh.smt.modules.technician.service.internal;
 
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
+import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
+import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodRequest;
 import com.fixinh.smt.modules.technician.dto.internal.AvailabilityPeriodResponse;
 import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeRequestDto;
@@ -9,6 +11,7 @@ import com.fixinh.smt.modules.technician.dto.internal.ScheduleChangeResponse;
 
 import java.util.List;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 /** Internal Interface (A.3.1/A.3.2) — consumed only by {@code TechnicianController}. */
 public interface TechnicianInternalService {
@@ -25,6 +28,10 @@ public interface TechnicianInternalService {
                                  double materialCost, String signedBillImageUrl);
 
     TechnicianResponse abort(String technicianId, String bookingId, String reason);
+
+    List<TechnicianExternalDto> findAvailableTechnicians(
+        LocalDate date, LocalTime start, LocalTime end, int durationMinutes
+    );
 
     // Periods
     AvailabilityPeriodResponse createAvailabilityPeriod(

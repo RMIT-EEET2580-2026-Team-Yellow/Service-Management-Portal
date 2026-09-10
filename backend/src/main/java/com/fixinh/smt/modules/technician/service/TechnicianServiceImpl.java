@@ -5,6 +5,8 @@
 package com.fixinh.smt.modules.technician.service;
 
 import com.fixinh.smt.common.security.RoleConfig;
+import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
+import com.fixinh.smt.modules.booking.service.external.BookingExternalService;
 import com.fixinh.smt.modules.staff.dto.external.StaffExternalDto;
 import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
@@ -54,19 +56,23 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
     private final TechnicianScheduleChangeRequestRepository technicianScheduleChangeRequestRepository;
     private final TechnicianAssignmentRepository technicianAssignmentRepository;
     private final StaffExternalService staffExternalService;
+    private final com.fixinh.smt.modules.booking.service.external.BookingExternalService bookingExternalService;
 
     public TechnicianServiceImpl(TechnicianRepository technicianRepository,
         TechnicianAvailabilityRepository technicianAvailabilityRepository,
         TechnicianAvailabilityPeriodRepository technicianAvailabilityPeriodRepository,
         TechnicianScheduleChangeRequestRepository technicianScheduleChangeRequestRepository,
         TechnicianAssignmentRepository technicianAssignmentRepository,
-        StaffExternalService staffExternalService) {
+        StaffExternalService staffExternalService,
+        @org.springframework.context.annotation.Lazy // To prevent circular constructor dependency
+        BookingExternalService bookingExternalService) { 
         this.technicianRepository = technicianRepository;
         this.technicianAvailabilityRepository = technicianAvailabilityRepository;
         this.technicianAvailabilityPeriodRepository = technicianAvailabilityPeriodRepository;
         this.technicianScheduleChangeRequestRepository = technicianScheduleChangeRequestRepository;
         this.technicianAssignmentRepository = technicianAssignmentRepository;
         this.staffExternalService = staffExternalService;
+        this.bookingExternalService = bookingExternalService;
     }
 
     private TechnicianExternalDto toExternalDto(Technician technician) {
@@ -321,6 +327,11 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
             .toList();
     }
 
+    @Override 
+    public List<TechnicianExternalDto> findAvailableTechnicians(LocalDate date, LocalTime start, LocalTime end, int durationMinutes) {
+        return findAvailable(date, start, end, durationMinutes);
+    }
+
     @Override
     public boolean acceptAssignment(String technicianId, String bookingId) {
         // TODO Milestone 2: find the TechnicianAssignment row for (bookingId, technicianId),
@@ -336,19 +347,25 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
 
     @Override
     public void createAssignments(String bookingId, List<String> technicianIds) {
-        // TODO Milestone 2: for each technicianId, technicianAssignmentRepository.save(
-        //   TechnicianAssignment.builder().bookingId(bookingId).technicianId(technicianId).build());
-        // This is the ONLY place that writes TechnicianAssignment rows — Booking module calls this
-        // instead of touching TechnicianAssignmentRepository itself (A.2.4).
-        throw new UnsupportedOperationException("Milestone 2");
+        if (technicianIds == null || technicianIds.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Technician IDs are required");
+        }
+
+        List<TechnicianAssignment> assignments = technicianIds.stream()
+            .map(technicianId -> TechnicianAssignment.builder()
+                .bookingId(bookingId)
+                .technicianId(technicianId)
+                .status("PENDING")
+                .build()
+            ).toList();
+
+        technicianAssignmentRepository.saveAll(assignments);
     }
 
     @Override
     public boolean areAllAssignmentsAccepted(String bookingId) {
-        // TODO Milestone 2: List<TechnicianAssignment> rows = technicianAssignmentRepository
-        //   .findByBookingId(bookingId); return !rows.isEmpty() && rows.stream()
-        //   .allMatch(a -> "ACCEPTED".equals(a.getStatus()));
-        throw new UnsupportedOperationException("Milestone 2");
+        List<TechnicianAssignment> rows = technicianAssignmentRepository.findByBookingId(bookingId);
+        return !rows.isEmpty() && rows.stream().allMatch(a -> "ACCEPTED".equals(a.getStatus()));
     }
 
     @Override
@@ -647,10 +664,18 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
     }
 
     @Override
-    public List<TechnicianResponse> myBookings(String technicianId) {
-        // TODO Milestone 2: technicianAssignmentRepository.findByTechnicianId(technicianId), then
-        // resolve each bookingId via BookingExternalService.findById(...).
-        throw new UnsupportedOperationException("Milestone 2");
+    public List<BookingExternalDto> myBookings(String technicianId) {
+        // TODO: Filter more bookings with other status as needed (Right now it's only scheduled bookings filtered)
+        technicianRepository.findById(technicianId)
+            .orElseThrow(() -> new ResourceNotFoundException("Technician not found with ID: " + technicianId));
+
+        return technicianAssignmentRepository.findByTechnicianId(technicianId).stream()
+            .map(TechnicianAssignment::getBookingId)
+            .distinct()
+            .map(bookingExternalService::findById)
+            .flatMap(Optional::stream)
+            .filter(booking -> "Scheduled".equals(booking.status()))
+            .toList();
     }
 
     @Override
