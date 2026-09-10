@@ -43,8 +43,9 @@ public final class BookingMapper {
         );
     }
 
-    /** Exposed to SBP (4.S1) and to the Technician module's "My Bookings" page (3.3.M6-M8) —
-     *  only the fields another module is allowed to see (A.2.3). */
+    /** Exposed to SBP (4.S1) and to the Technician module's "My Bookings" page (3.3.M6-M8), and
+     *  consumed internally by Statistics via BookingExternalService (3.4.S3/M3) for revenue-by-
+     *  service-type reporting — only the fields another module is allowed to see (A.2.3). */
     public static BookingExternalDto toExternalDto(Booking booking) {
         Double totalCost = booking.getServiceFee() != null && booking.getMaterialCost() != null
                 ? booking.getServiceFee() + booking.getMaterialCost()
@@ -59,7 +60,8 @@ public final class BookingMapper {
                 booking.getPreferredDate(),
                 booking.getAvailableStart(),
                 booking.getAvailableEnd(),
-                totalCost
+                totalCost,
+                booking.getServiceFee()
         );
     }
 }

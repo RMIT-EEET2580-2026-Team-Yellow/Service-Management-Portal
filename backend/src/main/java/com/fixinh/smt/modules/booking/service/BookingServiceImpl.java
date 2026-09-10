@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
@@ -59,7 +60,12 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
     @Override
     public List<BookingExternalDto> findCompletedBetween(LocalDate from, LocalDate to) {
-        throw new UnsupportedOperationException("Milestone 2");
+       
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime end = to.plusDays(1).atStartOfDay(); // exclusive upper bound, so `to` is inclusive
+        return bookingRepository.findByStatusAndCreatedAtBetween("Completed", start, end).stream()
+                .map(BookingMapper::toExternalDto)
+                .toList();
     }
 
     @Override
