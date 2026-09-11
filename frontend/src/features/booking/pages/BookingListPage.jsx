@@ -81,6 +81,36 @@ export default function BookingListPage() {
     return () => clearTimeout(timer);
   }, [tab, searchText, search]);
 
+  // Poll every 8s so a status change
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      loadActive();
+      loadPast();
+      if (tab === "active") {
+        if (searchText.trim()) {
+          search(searchText.trim());
+        } else {
+          loadFiltered({
+            serviceType: serviceTypeFilter,
+            from: dateRangeToFrom(dateRangeFilter),
+            sort: sortOrderToParam(sortOrder),
+          });
+        }
+      }
+    }, 8000);
+    return () => clearInterval(intervalId);
+  }, [
+    tab,
+    searchText,
+    serviceTypeFilter,
+    dateRangeFilter,
+    sortOrder,
+    loadActive,
+    loadPast,
+    loadFiltered,
+    search,
+  ]);
+
   const activeDisplay = useMemo(() => active.map(toDisplayBooking), [active]);
   const pastDisplay = useMemo(() => past.map(toDisplayBooking), [past]);
   const filteredDisplay = useMemo(() => filtered.map(toDisplayBooking), [filtered]);

@@ -18,6 +18,8 @@ import com.fixinh.smt.modules.booking.service.internal.BookingInternalService;
 import com.fixinh.smt.modules.notification.service.external.NotificationExternalService;
 import com.fixinh.smt.modules.technician.service.external.TechnicianExternalService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -73,8 +75,9 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                                                    String serviceAddress, LocalDate preferredDate,
                                                    LocalTime availableStart, LocalTime availableEnd) {
         // SBP-created bookings don't have a "how many technicians" concept on their side — default to 1.
+        // No Receptionist in the loop, so nobody to set as createdByStaffId (null -> no notification recipient).
         Booking booking = buildAndSaveBooking(customerId, serviceType, issueDescription, serviceAddress,
-                preferredDate, availableStart, availableEnd, 1);
+                preferredDate, availableStart, availableEnd, 1, null);
         return BookingMapper.toExternalDto(booking);
     }
 
@@ -84,8 +87,17 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     public BookingResponse create(BookingRequest request) {
         Booking booking = buildAndSaveBooking(request.customerId(), request.serviceType(), request.issueDescription(),
                 request.serviceAddress(), request.preferredDate(), request.availableStart(), request.availableEnd(),
-                request.requiredTechnicianCount());
+                request.requiredTechnicianCount(), currentStaffId());
         return BookingMapper.toResponse(booking);
+    }
+
+    /**
+     * staffId of the currently authenticated Receptionist (JWT-derived, per JwtFilter — the
+     * principal IS the staffId), recorded on the booking so 3.3.U2 knows who to notify later.
+     */
+    private String currentStaffId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null ? authentication.getName() : null;
     }
 
     /**
@@ -96,7 +108,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     private Booking buildAndSaveBooking(String customerId, String serviceType, String issueDescription,
                                          String serviceAddress, LocalDate preferredDate,
                                          LocalTime availableStart, LocalTime availableEnd,
-                                         Integer requiredTechnicianCount) {
+                                         Integer requiredTechnicianCount, String createdByStaffId) {
         if (!StringUtils.hasText(customerId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "customerId is required: the booking must reference an existing customer.");
         }
@@ -127,6 +139,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
         Booking booking = Booking.builder()
                 .customerId(customerId)
+                .createdByStaffId(createdByStaffId)
                 .serviceType(serviceType)
                 .issueDescription(issueDescription)
                 .serviceAddress(serviceAddress)
@@ -350,11 +363,23 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setStatus(newStatus);
         booking.setCancelReason(request.reason());
         booking.setCancelEvidenceImageUrls(request.evidenceImageUrls());
-        // TODO Milestone 2: notify (3.3.U2) once NotificationExternalService.notifyStatusChange
-        // is implemented — calling it now would throw UnsupportedOperationException.
         Booking saved = bookingRepository.save(booking);
 
+        notifyReceptionist(saved, newStatus, "Reason: " + request.reason());
+
         return toResponseWithAssignments(saved);
+    }
+
+    /** 3.3.U2 — real-time in-app notification to the Receptionist who created the booking, sent
+     *  when status changes to COMPLETED, CANCELLED BY CUSTOMER, TERMINATED BY CUSTOMER, or
+     *  ABORTED BY TECHNICIAN. Silently a no-op if the booking has no recorded creator (SBP-created
+     *  bookings, or data created before createdByStaffId existed) — nobody to notify.
+     *  @param detail extra context shown in the notification body — e.g. cancel/abort reason, or
+     *                 cost breakdown on completion. Pass null for none. */
+    private void notifyReceptionist(Booking booking, String newStatus, String detail) {
+        if (StringUtils.hasText(booking.getCreatedByStaffId())) {
+            notificationExternalService.notifyStatusChange(booking.getCreatedByStaffId(), booking.getId(), newStatus, detail);
+        }
     }
 
     @Override
@@ -398,6 +423,10 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setSignedBillImageUrl(signedBillImageUrl);
         Booking saved = bookingRepository.save(booking);
 
+        String costDetail = "Service fee: " + serviceFee + ", Material cost: " + materialCost
+                + " (Total: " + (serviceFee + materialCost) + ")";
+        notifyReceptionist(saved, "COMPLETED", costDetail);
+
         return BookingMapper.toExternalDto(saved);
     }
 
@@ -417,6 +446,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setStatus("ABORTED BY TECHNICIAN");
         booking.setCancelReason(reason);
         Booking saved = bookingRepository.save(booking);
+
+        notifyReceptionist(saved, "ABORTED BY TECHNICIAN", "Reason: " + reason);
 
         return BookingMapper.toExternalDto(saved);
     }
