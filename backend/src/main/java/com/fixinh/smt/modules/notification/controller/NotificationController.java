@@ -30,4 +30,13 @@ public class NotificationController {
         notificationInternalService.markRead(notificationId);
         return ApiResponse.ok(null);
     }
+
+    /** "Clear" button — a staff member may only clear their own notifications; ADMIN may clear
+     *  anyone's (A.2.a), same rule as reading the list. */
+    @DeleteMapping("/{staffId}")
+    @PreAuthorize("hasRole('ADMIN') or authentication.name == #staffId")
+    public ApiResponse<Void> clearAll(@PathVariable String staffId) {
+        notificationInternalService.clearAll(staffId);
+        return ApiResponse.ok(null);
+    }
 }

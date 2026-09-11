@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import NavIcon from "./NavIcon";
 import { useAuth } from "../../common/hooks/useAuth";
+import { useNotifications } from "../../common/hooks/useNotifications";
 import { ROUTE_ROLES } from "../../common/utils/roleAccess";
 
 const navItems = [
@@ -23,6 +24,7 @@ export default function Sidebar() {
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { unreadCount, load } = useNotifications();
   const visibleNavItems = navItems.filter((item) =>
     ROUTE_ROLES[item.path]?.includes(user?.role)
   );
@@ -30,6 +32,12 @@ export default function Sidebar() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
+
+  // Sidebar is mounted for the whole app (inside AppLayout), so this is also what keeps the
+  // polling loop in useNotifications alive across every page, not just /notifications.
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -50,7 +58,7 @@ export default function Sidebar() {
           to={item.path}
           aria-label={item.label}
           className={({ isActive }) =>
-            `flex h-10 w-10 items-center justify-center rounded-lg text-lg transition-colors ${
+            `relative flex h-10 w-10 items-center justify-center rounded-lg text-lg transition-colors ${
               isActive
                 ? "bg-blue-600/20 text-blue-400"
                 : "text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -58,6 +66,11 @@ export default function Sidebar() {
           }
         >
           <NavIcon name={item.icon} />
+          {item.path === "/notifications" && unreadCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
         </NavLink>
       ))}
 

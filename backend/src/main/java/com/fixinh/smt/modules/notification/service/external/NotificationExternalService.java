@@ -7,5 +7,5 @@ package com.fixinh.smt.modules.notification.service.external;
  */
 public interface NotificationExternalService {
 
-    void notifyStatusChange(String recipientStaffId, String bookingId, String newStatus);
+    void notifyStatusChange(String recipientStaffId, String bookingId, String newStatus, String detail);
 }
