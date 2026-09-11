@@ -41,6 +41,11 @@ public class Booking implements Persistable<String> {
 
     private String branchId; // pending SBT confirmation (proposed 30/7) — see backlog 6.3/6.6
 
+    // staffId of the Receptionist who created this booking (JWT-derived) — recipient of the
+    // real-time status-change notification (3.3.U2). Null for SBP-created bookings and for any
+    // booking created before this field existed.
+    private String createdByStaffId;
+
     private String serviceType;
     private String issueDescription;
     private String serviceAddress;
