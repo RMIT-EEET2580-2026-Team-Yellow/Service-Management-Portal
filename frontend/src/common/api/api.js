@@ -1,7 +1,7 @@
 // Base includes /v1 — matches every backend controller (@RequestMapping("/api/v1/..."))
 // NOTE: GET requests now go through src/http_call/HttpRequest.js instead — this file
 // is kept only for the existing POST-based login flow (authApi.js).
-const BASE_URL = "http://localhost:8080/api/v1";
+const BASE_URL = "https://localhost:8080/api/v1";
 
 export async function api(endpoint, options = {}) {
   const token = localStorage.getItem("token");
