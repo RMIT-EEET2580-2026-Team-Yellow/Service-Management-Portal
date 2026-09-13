@@ -1,27 +1,6 @@
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-/**
- * MOCK UI ONLY — no backend wired up yet (3.4.S2, M1, M2).
- * Real version calls GET /api/statistics/ratings, which internally proxies
- * to SBP's rating aggregate API (SRS 3.4.S1/S5) — must not query a local
- * rating table. Technicians must not access this page (3.4.S4/M4).
- */
-
-const MOCK_RATING = {
-  "B-0998": {
-    service: "Aircon Repair Service",
-    completedDate: "05 Aug 2026",
-    technician: "Nguyễn Văn A",
-    overall: 4.6,
-    subRatings: [
-      { label: "Integrity", value: 4.8 },
-      { label: "Quality", value: 4.5 },
-      { label: "Friendliness", value: 4.6 },
-    ],
-    review: "Great service! Very professional and friendly. Will book again.",
-    evidenceImages: 2,
-  },
-};
+import { useStatistics } from "../../../common/hooks/useStatistics";
 
 function Stars({ value }) {
   const full = Math.round(value);
@@ -37,75 +16,113 @@ function Stars({ value }) {
 export default function RatingDetailPage() {
   const navigate = useNavigate();
   const { bookingId } = useParams();
-  const rating = MOCK_RATING[bookingId] || MOCK_RATING["B-0998"];
+  const { bookingReview, bookingReviewLoading, bookingReviewError, loadBookingReview, clearReview } =
+    useStatistics();
+
+  useEffect(() => {
+    loadBookingReview(bookingId);
+    return () => clearReview();
+  }, [bookingId, loadBookingReview, clearReview]);
+
+  const subRatings = bookingReview
+    ? [
+        { label: "Integrity", value: bookingReview.integrity },
+        { label: "Quality", value: bookingReview.quality },
+        { label: "Friendliness", value: bookingReview.friendliness },
+      ]
+    : [];
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="bg-white border-b border-gray-200 px-8 py-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+      <div className="border-b border-gray-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="text-lg font-extrabold text-gray-900 flex items-center gap-2"
+          className="flex items-center gap-2 text-lg font-extrabold text-gray-900 dark:text-white"
         >
-          ← Booking #{bookingId}
+          ← Booking #{bookingId.slice(0, 8)}…
         </button>
-        <p className="text-xs text-gray-400 mt-0.5">Statistics / Rating Detail</p>
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">Statistics / Rating Detail</p>
       </div>
 
-      <div className="flex justify-center p-8">
-        <div className="w-[640px] bg-white rounded-xl shadow-sm overflow-hidden h-fit">
-          <div className="px-6 py-5 border-b border-gray-100 text-center">
-            <div className="text-[10px] font-bold uppercase text-gray-400 mb-2">
-              Overall Rating
+      <div className="flex justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-[640px]">
+          {bookingReviewLoading && (
+            <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-400 shadow-sm dark:bg-slate-900 dark:text-slate-500">
+              Loading review…
             </div>
-            <div className="text-4xl font-extrabold text-gray-900">{rating.overall}</div>
-            <div className="mt-1">
-              <Stars value={rating.overall} />
-            </div>
-            <div className="text-xs text-gray-400 mt-2">
-              {rating.service} · Completed {rating.completedDate} · Technician: {rating.technician}
-            </div>
-          </div>
+          )}
 
-          <div className="px-6 py-5 border-b border-gray-100">
-            <div className="text-[10px] font-bold uppercase text-gray-400 mb-3">
-              Sub-category Ratings
+          {bookingReviewError && (
+            <div className="rounded-xl bg-white p-6 text-center text-sm text-red-500 shadow-sm dark:bg-slate-900">
+              {bookingReviewError}
             </div>
-            {rating.subRatings.map((s) => (
-              <div key={s.label} className="flex items-center gap-3 text-xs mb-2.5">
-                <span className="w-24 shrink-0 text-gray-500">{s.label}</span>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-600 rounded-full"
-                    style={{ width: `${(s.value / 5) * 100}%` }}
-                  />
+          )}
+
+          {!bookingReviewLoading && !bookingReviewError && bookingReview && (
+            <div className="h-fit overflow-hidden rounded-xl bg-white shadow-sm dark:bg-slate-900">
+              <div className="border-b border-gray-100 px-6 py-5 text-center dark:border-slate-800">
+                <div className="mb-2 text-[10px] font-bold uppercase text-gray-400 dark:text-slate-500">
+                  Overall Rating
                 </div>
-                <span className="w-8 text-right font-bold">{s.value}</span>
+                <div className="text-4xl font-extrabold text-gray-900 dark:text-white">
+                  {bookingReview.overallStars}
+                </div>
+                <div className="mt-1">
+                  <Stars value={bookingReview.overallStars} />
+                </div>
               </div>
-            ))}
-          </div>
 
-          <div className="px-6 py-5 border-b border-gray-100">
-            <div className="text-[10px] font-bold uppercase text-gray-400 mb-2">
-              Customer Review
-            </div>
-            <p className="text-sm italic text-gray-700 leading-relaxed">"{rating.review}"</p>
-          </div>
-
-          <div className="px-6 py-5">
-            <div className="text-[10px] font-bold uppercase text-gray-400 mb-3">
-              Evidence Images
-            </div>
-            <div className="flex gap-2.5">
-              {Array.from({ length: rating.evidenceImages }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-[90px] h-[90px] bg-gray-100 rounded-lg flex items-center justify-center text-gray-300 text-xl"
-                >
-                  🖼️
+              <div className="border-b border-gray-100 px-6 py-5 dark:border-slate-800">
+                <div className="mb-3 text-[10px] font-bold uppercase text-gray-400 dark:text-slate-500">
+                  Sub-category Ratings
                 </div>
-              ))}
+                {subRatings.map((s) => (
+                  <div key={s.label} className="mb-2.5 flex items-center gap-3 text-xs">
+                    <span className="w-24 shrink-0 text-gray-500 dark:text-slate-400">{s.label}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-indigo-600"
+                        style={{ width: `${(s.value / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-right font-bold text-gray-700 dark:text-slate-300">
+                      {s.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-b border-gray-100 px-6 py-5 dark:border-slate-800">
+                <div className="mb-2 text-[10px] font-bold uppercase text-gray-400 dark:text-slate-500">
+                  Customer Review
+                </div>
+                <p className="text-sm italic leading-relaxed text-gray-700 dark:text-slate-300">
+                  {bookingReview.reviewText ? `"${bookingReview.reviewText}"` : "No written review."}
+                </p>
+              </div>
+
+              <div className="px-6 py-5">
+                <div className="mb-3 text-[10px] font-bold uppercase text-gray-400 dark:text-slate-500">
+                  Evidence Images
+                </div>
+                {(bookingReview.evidenceImageUrls ?? []).length === 0 ? (
+                  <p className="text-xs text-gray-400 dark:text-slate-500">No evidence images uploaded.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2.5">
+                    {bookingReview.evidenceImageUrls.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                        <img
+                          src={url}
+                          alt="Rating evidence"
+                          className="h-[90px] w-[90px] rounded-lg object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

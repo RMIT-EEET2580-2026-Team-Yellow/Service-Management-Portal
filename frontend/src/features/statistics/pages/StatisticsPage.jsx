@@ -1,141 +1,270 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useStatistics } from "../../../common/hooks/useStatistics";
+import { useBookings } from "../../../common/hooks/useBookings";
 
-/**
- * MOCK UI ONLY — no backend wired up yet (3.4.S3, M3).
- * Replace MOCK_REVENUE with real data from GET /api/statistics/revenue
- * (reads serviceFee only, materialCost excluded per 3.4.S3) once ready.
- */
+/** VND display — mirrors the local formatter DashboardPage already uses.
+ *  (common/utils/formatCurrency.js exists but formats as "$0.00" and isn't
+ *  used anywhere in the app — don't import it here.) */
+function formatVnd(value) {
+  if (value == null) return "—";
+  return `${Number(value).toLocaleString("en-US")} ₫`;
+}
 
-const MOCK_STATS = {
-  revenueThisMonth: "18,400,000",
-  revenueMonthDelta: "12.5% vs last month",
-  revenueThisYear: "214,850,000",
-  revenueYearDelta: "8.7% vs last year",
-  completedBookings: 142,
-};
+function StatCard({ label, value, hint }) {
+  return (
+    <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-900 sm:p-5">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+        {label}
+      </div>
+      <div className="mt-2 text-xl font-extrabold text-gray-900 dark:text-white sm:text-2xl">
+        {value}
+      </div>
+      {hint && <div className="mt-1 text-xs text-gray-400 dark:text-slate-500">{hint}</div>}
+    </div>
+  );
+}
 
-const REVENUE_BY_SERVICE = {
-  monthly: [
-    { name: "Electrical Repair", pct: 38, amount: "7.0M", color: "#5b5fc7" },
-    { name: "Plumbing Repair", pct: 29, amount: "5.3M", color: "#7c80d6" },
-    { name: "Aircon Repair", pct: 21, amount: "3.9M", color: "#a4a7e5" },
-    { name: "Roof Repair", pct: 12, amount: "2.2M", color: "#c8caf0" },
-  ],
-  yearly: [
-    { name: "Electrical Repair", pct: 38, amount: "81.6M", color: "#5b5fc7" },
-    { name: "Plumbing Repair", pct: 29, amount: "62.3M", color: "#7c80d6" },
-    { name: "Aircon Repair", pct: 21, amount: "45.1M", color: "#a4a7e5" },
-    { name: "Roof Repair", pct: 12, amount: "25.8M", color: "#c8caf0" },
-  ],
-};
-
-const RECENT_RATINGS = [
-  { bookingId: "B-0998", service: "Aircon Repair Service", rating: 4.6 },
-];
-
-export default function StatisticsPage() {
-  const [period, setPeriod] = useState("monthly");
-  const bars = REVENUE_BY_SERVICE[period];
+function RevenueByServiceType({ revenue }) {
+  const shares = revenue?.revenueShareByServiceType ?? {};
+  const amounts = revenue?.revenueByServiceType ?? {};
+  const entries = Object.entries(shares).sort((a, b) => b[1] - a[1]);
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="bg-white border-b border-gray-200 px-8 py-4">
-        <h1 className="text-lg font-extrabold text-gray-900">Statistics</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Revenue Overview</p>
+    <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-900 sm:p-6">
+      <div className="mb-4 text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+        Revenue by Service Type (Year to Date)
       </div>
 
-      <div className="p-8 flex flex-col gap-5 max-w-4xl">
-        {/* Stat cards */}
-        <div className="flex gap-4.5 gap-4">
-          <div className="flex-1 bg-white rounded-xl shadow-sm px-5 py-4.5">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
-              Revenue This Month
+      {entries.length === 0 && (
+        <p className="text-sm text-gray-400 dark:text-slate-500">No revenue recorded yet this year.</p>
+      )}
+
+      {entries.map(([name, pct]) => (
+        <div key={name} className="mb-3.5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3.5">
+          <span className="text-[12.5px] font-semibold text-gray-700 dark:text-slate-300 sm:w-36 sm:shrink-0">
+            {name}
+          </span>
+          <div className="h-5 flex-1 overflow-hidden rounded-md bg-gray-100 dark:bg-slate-800">
+            <div
+              className="h-full rounded-md bg-indigo-500"
+              style={{ width: `${Math.min(pct, 100)}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-gray-500 dark:text-slate-400 sm:w-28 sm:text-right">
+            {pct.toFixed(1)}% · {formatVnd(amounts[name])}
+          </span>
+        </div>
+      ))}
+
+      <div className="mt-1.5 text-[11px] text-gray-400 dark:text-slate-500">
+        * Revenue calculated by Service Fee, Material Cost not included
+      </div>
+    </div>
+  );
+}
+
+function RatingRow({ subjectId, subjectType, averageOverall, averageIntegrity, averageQuality, averageFriendliness }) {
+  return (
+    <>
+      {/* Desktop/tablet row */}
+      <tr className="hidden border-b border-gray-100 last:border-0 dark:border-slate-800 md:table-row">
+        <td className="py-2.5 pr-3 text-sm font-semibold text-gray-800 dark:text-slate-200">{subjectId}</td>
+        <td className="py-2.5 pr-3 text-center text-sm font-bold text-indigo-600 dark:text-indigo-400">
+          ⭐ {averageOverall.toFixed(1)}
+        </td>
+        <td className="py-2.5 pr-3 text-center text-xs text-gray-500 dark:text-slate-400">{averageIntegrity.toFixed(1)}</td>
+        <td className="py-2.5 pr-3 text-center text-xs text-gray-500 dark:text-slate-400">{averageQuality.toFixed(1)}</td>
+        <td className="py-2.5 text-center text-xs text-gray-500 dark:text-slate-400">{averageFriendliness.toFixed(1)}</td>
+      </tr>
+
+      {/* Mobile card */}
+      <tr className="table-row border-b border-gray-100 last:border-0 dark:border-slate-800 md:hidden">
+        <td colSpan={5} className="py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">{subjectId}</span>
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              ⭐ {averageOverall.toFixed(1)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex gap-4 text-[11px] text-gray-400 dark:text-slate-500">
+            <span>Integrity {averageIntegrity.toFixed(1)}</span>
+            <span>Quality {averageQuality.toFixed(1)}</span>
+            <span>Friendliness {averageFriendliness.toFixed(1)}</span>
+          </div>
+        </td>
+      </tr>
+      {/* subjectType kept out of the visible row — every row in a given table already shares
+          the same subjectType (SERVICE_TYPE or TECHNICIAN), so it'd be redundant per-row noise. */}
+      {subjectType && false}
+    </>
+  );
+}
+
+function RatingsTable({ title, rows, loading, error, emptyHint }) {
+  return (
+    <div>
+      <div className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+        {title}
+      </div>
+      {loading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      {!loading && !error && rows.length === 0 && (
+        <p className="text-sm text-gray-400 dark:text-slate-500">{emptyHint}</p>
+      )}
+      {!loading && !error && rows.length > 0 && (
+        <table className="w-full">
+          <thead className="hidden md:table-header-group">
+            <tr className="border-b border-gray-200 text-left text-[10px] font-bold uppercase text-gray-400 dark:border-slate-800 dark:text-slate-500">
+              <th className="pb-2 pr-3 font-bold">Subject</th>
+              <th className="pb-2 pr-3 text-center font-bold">Overall</th>
+              <th className="pb-2 pr-3 text-center font-bold">Integrity</th>
+              <th className="pb-2 pr-3 text-center font-bold">Quality</th>
+              <th className="pb-2 text-center font-bold">Friendliness</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <RatingRow key={`${r.subjectType}-${r.subjectId}`} {...r} />
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+export default function StatisticsPage() {
+  const {
+    revenue,
+    revenueLoading,
+    revenueError,
+    loadRevenue,
+    serviceTypeRatings,
+    serviceTypeRatingsLoading,
+    serviceTypeRatingsError,
+    loadServiceTypeRatings,
+    technicianRatings,
+    technicianRatingsLoading,
+    technicianRatingsError,
+    loadTechnicianRatings,
+  } = useStatistics();
+
+  const { past, listLoading, loadPast } = useBookings();
+
+  const [ratingPeriod, setRatingPeriod] = useState("monthly");
+
+  useEffect(() => {
+    loadRevenue();
+    loadPast();
+  }, [loadRevenue, loadPast]);
+
+  useEffect(() => {
+    loadServiceTypeRatings(ratingPeriod);
+    loadTechnicianRatings(ratingPeriod);
+  }, [ratingPeriod, loadServiceTypeRatings, loadTechnicianRatings]);
+
+  const completedBookings = (past ?? []).filter((b) => b.status === "COMPLETED");
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+      <div className="border-b border-gray-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 lg:px-8">
+        <h1 className="text-lg font-extrabold text-gray-900 dark:text-white">Statistics</h1>
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">Revenue & Rating Overview</p>
+      </div>
+
+      <div className="flex flex-col gap-5 p-4 sm:p-6 lg:max-w-6xl lg:p-8">
+        {revenueError && (
+          <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-400">
+            {revenueError}
+          </div>
+        )}
+
+        {/* Stat cards — 1 col mobile, 3 cols tablet+ */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Revenue This Month"
+            value={revenueLoading ? "…" : formatVnd(revenue?.currentMonthRevenue)}
+          />
+          <StatCard
+            label="Revenue This Year"
+            value={revenueLoading ? "…" : formatVnd(revenue?.currentYearRevenue)}
+          />
+          <StatCard
+            label="Completed Bookings"
+            value={listLoading ? "…" : completedBookings.length}
+            hint="all time (loaded)"
+          />
+        </div>
+
+        <RevenueByServiceType revenue={revenue} />
+
+        {/* Ratings — 3.4.M3/U1/U2 */}
+        <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-900 sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+              Ratings
             </div>
-            <div className="text-2xl font-extrabold mt-2">{MOCK_STATS.revenueThisMonth} ₫</div>
-            <div className="text-[11.5px] font-semibold text-green-600 mt-1">
-              ↑ {MOCK_STATS.revenueMonthDelta}
+            <div className="flex gap-3 text-sm">
+              {["monthly", "yearly"].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setRatingPeriod(p)}
+                  className={`font-bold capitalize ${
+                    ratingPeriod === p
+                      ? "text-gray-900 underline dark:text-white"
+                      : "text-gray-400 dark:text-slate-600"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="flex-1 bg-white rounded-xl shadow-sm px-5 py-4.5">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
-              Revenue This Year
+
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <div className="flex-1">
+              <RatingsTable
+                title="By Service Type"
+                rows={serviceTypeRatings}
+                loading={serviceTypeRatingsLoading}
+                error={serviceTypeRatingsError}
+                emptyHint="No service-type ratings for this period."
+              />
             </div>
-            <div className="text-2xl font-extrabold mt-2">{MOCK_STATS.revenueThisYear} ₫</div>
-            <div className="text-[11.5px] font-semibold text-green-600 mt-1">
-              ↑ {MOCK_STATS.revenueYearDelta}
+            <div className="flex-1">
+              <RatingsTable
+                title="By Technician"
+                rows={technicianRatings}
+                loading={technicianRatingsLoading}
+                error={technicianRatingsError}
+                emptyHint="No technician ratings for this period."
+              />
             </div>
-          </div>
-          <div className="flex-1 bg-white rounded-xl shadow-sm px-5 py-4.5">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
-              Completed Bookings
-            </div>
-            <div className="text-2xl font-extrabold mt-2">{MOCK_STATS.completedBookings}</div>
-            <div className="text-[11.5px] text-gray-400 mt-1">this month</div>
           </div>
         </div>
 
-        {/* Revenue by service type */}
-        <div className="bg-white rounded-xl shadow-sm px-6 py-5.5 p-6">
-          <div className="flex items-center justify-between mb-4.5 mb-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
-              Revenue by Service Type
-            </div>
-            <div className="flex gap-3.5 text-sm">
-              <button
-                onClick={() => setPeriod("monthly")}
-                className={`font-bold ${
-                  period === "monthly" ? "text-gray-900 underline" : "text-gray-400"
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setPeriod("yearly")}
-                className={`font-bold ${
-                  period === "yearly" ? "text-gray-900 underline" : "text-gray-400"
-                }`}
-              >
-                Yearly
-              </button>
-            </div>
+        {/* Completed bookings — entry point into per-booking review (3.4.S2) */}
+        <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-900 sm:p-6">
+          <div className="mb-3 text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+            Completed Bookings
           </div>
-
-          {bars.map((b) => (
-            <div key={b.name} className="flex items-center gap-3.5 mb-3.5">
-              <span className="w-32 shrink-0 text-[12.5px] font-semibold">{b.name}</span>
-              <div className="flex-1 h-5.5 h-6 bg-gray-100 rounded-md overflow-hidden">
-                <div
-                  className="h-full rounded-md"
-                  style={{ width: `${b.pct}%`, backgroundColor: b.color }}
-                />
-              </div>
-              <span className="w-16 text-right text-xs font-bold text-gray-500">
-                {b.pct}% · {b.amount}
-              </span>
-            </div>
-          ))}
-
-          <div className="text-[11px] text-gray-400 mt-1.5">
-            * Revenue tính theo Service Fee, không bao gồm Material Cost
-          </div>
-        </div>
-
-        {/* Ratings entry point (3.4.S2) */}
-        <div className="bg-white rounded-xl shadow-sm px-6 py-5">
-          <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-3">
-            Recent Ratings
-          </div>
-          {RECENT_RATINGS.map((r) => (
+          {listLoading && <p className="text-sm text-gray-400 dark:text-slate-500">Loading…</p>}
+          {!listLoading && completedBookings.length === 0 && (
+            <p className="text-sm text-gray-400 dark:text-slate-500">No completed bookings yet.</p>
+          )}
+          {completedBookings.map((b) => (
             <Link
-              key={r.bookingId}
-              to={`/statistics/rating/${r.bookingId}`}
-              className="flex items-center justify-between text-sm py-2 hover:bg-gray-50 rounded-lg px-2 -mx-2"
+              key={b.id}
+              to={`/statistics/rating/${b.id}`}
+              className="-mx-2 flex flex-col gap-0.5 rounded-lg px-2 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span>
-                #{r.bookingId} — {r.service}
+              <span className="text-gray-700 dark:text-slate-300">
+                #{b.id.slice(0, 8)}… — {b.serviceType}
               </span>
-              <span className="font-bold text-indigo-600">⭐ {r.rating} →</span>
+              <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                View rating →
+              </span>
             </Link>
           ))}
         </div>

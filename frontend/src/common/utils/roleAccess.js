@@ -11,8 +11,8 @@ export const ROUTE_ROLES = {
   "/staff": [USER_ROLE.ADMIN],
   "/technician": [USER_ROLE.ADMIN, USER_ROLE.TECHNICIAN],
   "/technician/schedule": [USER_ROLE.ADMIN, USER_ROLE.TECHNICIAN],
-  "/statistics": [USER_ROLE.ADMIN],
-  "/statistics/rating": [USER_ROLE.ADMIN],
+  "/statistics": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST],
+  "/statistics/rating": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST],
   "/notifications": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST, USER_ROLE.TECHNICIAN],
 };
 

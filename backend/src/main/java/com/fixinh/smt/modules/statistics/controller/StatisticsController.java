@@ -15,7 +15,7 @@ import java.util.List;
 /** Revenue and rating statistics are ADMIN-only reporting (A.2.a). */
 @RestController
 @RequestMapping("/api/v1/statistics")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
 public class StatisticsController {
 
     private final StatisticsInternalService statisticsInternalService;
