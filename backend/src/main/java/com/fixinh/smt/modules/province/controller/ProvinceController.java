@@ -1,7 +1,7 @@
 package com.fixinh.smt.modules.province.controller;
 
 import com.fixinh.smt.modules.province.dto.internal.ProvinceResponse;
-import com.fixinh.smt.modules.province.service.ProvinceService;
+import com.fixinh.smt.modules.province.service.internal.ProvinceInternalService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,7 +12,7 @@ import java.util.List;
 public class ProvinceController {
 
     @Autowired
-    private ProvinceService provinceService;
+    private ProvinceInternalService provinceService;
 
     @GetMapping()
     public List<ProvinceResponse> getProvinces() {
