@@ -1,7 +1,7 @@
 package com.fixinh.smt.common.sharding;
 
 import com.fixinh.smt.common.exception.ApiException;
-import com.fixinh.smt.modules.province.service.ProvinceService;
+import com.fixinh.smt.modules.province.service.external.ProvinceExternalService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -10,9 +10,9 @@ import org.springframework.util.StringUtils;
 @Component
 public class ShardKeyResolver {
 
-    private final ProvinceService provinceService;
+    private final ProvinceExternalService provinceService;
 
-    public ShardKeyResolver(ProvinceService provinceService) {
+    public ShardKeyResolver(ProvinceExternalService provinceService) {
         this.provinceService = provinceService;
     }
 
