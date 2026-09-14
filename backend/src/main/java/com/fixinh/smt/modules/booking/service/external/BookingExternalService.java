@@ -16,6 +16,10 @@ public interface BookingExternalService {
 
     Optional<BookingExternalDto> findById(String bookingId);
 
+    /** SBP's "my bookings" list (their RealSmpClient.findBookingsByCustomer, EPIC3.4) - GET
+     *  /api/v1/integration/bookings?customerId={id}, SERVICE-role only. */
+    List<BookingExternalDto> findByCustomerId(String customerId);
+
     List<BookingExternalDto> findCompletedBetween(java.time.LocalDate from, java.time.LocalDate to);
 
     /** Called by SBP to create a booking (mirrors SBP-side 3.3.S1/S2) — 4.S1.

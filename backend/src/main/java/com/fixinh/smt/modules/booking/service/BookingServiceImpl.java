@@ -82,6 +82,13 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     }
 
     @Override
+    public List<BookingExternalDto> findByCustomerId(String customerId) {
+        return bookingRepository.findByCustomerId(customerId).stream()
+                .map(BookingMapper::toExternalDto)
+                .toList();
+    }
+
+    @Override
     public List<BookingExternalDto> findCompletedBetween(LocalDate from, LocalDate to) {
        
         LocalDateTime start = from.atStartOfDay();
