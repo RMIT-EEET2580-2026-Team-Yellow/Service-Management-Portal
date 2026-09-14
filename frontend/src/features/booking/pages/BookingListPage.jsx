@@ -239,8 +239,8 @@ export default function BookingListPage() {
         cancelling={cancelling}
         cancelError={cancelError}
         onBack={() => setCancellingBooking(null)}
-        onConfirm={async (reason) => {
-          const result = await cancel(cancellingBooking.id, { reason, evidenceImageUrls: [] });
+        onConfirm={async (reason, evidenceImageUrls) => {
+          const result = await cancel(cancellingBooking.id, { reason, evidenceImageUrls });
           if (result) setCancellingBooking(null);
         }}
       />

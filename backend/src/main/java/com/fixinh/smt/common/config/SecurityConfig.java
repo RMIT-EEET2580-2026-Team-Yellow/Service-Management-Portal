@@ -4,6 +4,7 @@ import com.fixinh.smt.common.security.JwtFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -37,6 +38,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Uploaded evidence/bill images: retrieval is public (URLs are unguessable
+                        // UUIDs, and an <img> tag can't send an Authorization header); uploading
+                        // (POST) still requires auth via the anyRequest() rule below.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
