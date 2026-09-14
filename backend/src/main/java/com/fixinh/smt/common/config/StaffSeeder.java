@@ -8,12 +8,17 @@ import com.fixinh.smt.modules.auth.repository.UserRepository;
 import com.fixinh.smt.modules.staff.entity.Staff;
 import com.fixinh.smt.modules.staff.repository.StaffShardRepository;
 import com.fixinh.smt.modules.technician.entity.Technician;
+import com.fixinh.smt.modules.technician.entity.TechnicianAvailability;
+import com.fixinh.smt.modules.technician.repository.TechnicianAvailabilityRepository;
 import com.fixinh.smt.modules.technician.repository.TechnicianRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalTime;
+import java.util.List;
 
 /**
  * Sample Staff accounts for local dev/testing (both regions, RECEPTIONIST + TECHNICIAN), so a
@@ -30,6 +35,9 @@ public class StaffSeeder implements CommandLineRunner {
 
     @Autowired
     private TechnicianRepository technicianRepository;
+
+    @Autowired
+    private TechnicianAvailabilityRepository technicianAvailabilityRepository;
 
     @Autowired
     private ShardKeyResolver shardKeyResolver;
@@ -88,7 +96,17 @@ public class StaffSeeder implements CommandLineRunner {
             Technician technician = Technician.builder()
                     .staffId(saved.getId())
                     .build();
-            technicianRepository.save(technician);
+            Technician savedTechnician = technicianRepository.save(technician);
+
+            // Without this, TechnicianServiceImpl.findAvailable() has nothing to match against
+            TechnicianAvailability availability = TechnicianAvailability.builder()
+                    .technicianId(savedTechnician.getId())
+                    .workingDays(List.of("MON", "TUE", "WED", "THU", "FRI"))
+                    .dailyStart(LocalTime.of(8, 0))
+                    .dailyEnd(LocalTime.of(20, 0))
+                    .currentlyAvailable(true)
+                    .build();
+            technicianAvailabilityRepository.save(availability);
         }
     }
 }
