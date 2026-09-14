@@ -20,5 +20,13 @@ export default defineConfig({
       key: fs.readFileSync(path.join(certDir, "localhost-key.pem")),
       cert: fs.readFileSync(path.join(certDir, "localhost-cert.pem")),
     },
+  
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_PROXY_TARGET || "https://backend:8080",
+        changeOrigin: true,
+        secure: false, // backend's cert is self-signed too - trust it here, server-side, once
+      },
+    },
   },
 });

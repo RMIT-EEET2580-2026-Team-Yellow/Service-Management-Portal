@@ -1,7 +1,9 @@
 // Base includes /v1 — matches every backend controller (@RequestMapping("/api/v1/..."))
 // NOTE: GET requests now go through src/http_call/HttpRequest.js instead — this file
 // is kept only for the existing POST-based login flow (authApi.js).
-const BASE_URL = "https://localhost:8080/api/v1";
+// Relative (same-origin as the frontend, 5173) on purpose — vite.config.js proxies /api/* to the
+// backend server-side, so the browser never has to trust the backend's own self-signed cert.
+const BASE_URL = "/api/v1";
 
 export async function api(endpoint, options = {}) {
   const token = localStorage.getItem("token");
