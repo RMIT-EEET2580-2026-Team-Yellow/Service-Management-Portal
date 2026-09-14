@@ -27,6 +27,8 @@ public interface BookingExternalService {
     BookingExternalDto createFromCustomer(String customerId, String serviceType, String issueDescription,
                                            String serviceAddress, java.time.LocalDate preferredDate,
                                            java.time.LocalTime availableStart, java.time.LocalTime availableEnd);
+ 
+    BookingExternalDto cancelFromCustomer(String bookingId, String reason, List<String> evidenceImageUrls);
 
     Optional<BookingExternalDto> tryMarkScheduled(String bookingId);
 

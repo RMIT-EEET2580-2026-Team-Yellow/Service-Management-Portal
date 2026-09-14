@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -78,23 +79,23 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     @Override
     public Optional<BookingExternalDto> findById(String bookingId) {
         return bookingRepository.findById(bookingId)
-            .map(BookingMapper::toExternalDto);
+            .map(b -> BookingMapper.toExternalDto(b, technicianExternalService.findAssignedTechnicianNames(b.getId())));
     }
 
     @Override
     public List<BookingExternalDto> findByCustomerId(String customerId) {
         return bookingRepository.findByCustomerId(customerId).stream()
-                .map(BookingMapper::toExternalDto)
+                .map(b -> BookingMapper.toExternalDto(b, technicianExternalService.findAssignedTechnicianNames(b.getId())))
                 .toList();
     }
 
     @Override
     public List<BookingExternalDto> findCompletedBetween(LocalDate from, LocalDate to) {
-       
+
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.plusDays(1).atStartOfDay(); // exclusive upper bound, so `to` is inclusive
         return bookingRepository.findByStatusAndCreatedAtBetween("COMPLETED", start, end).stream()
-                .map(BookingMapper::toExternalDto)
+                .map(b -> BookingMapper.toExternalDto(b, technicianExternalService.findAssignedTechnicianNames(b.getId())))
                 .toList();
     }
 
@@ -106,7 +107,8 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         // No Receptionist in the loop, so nobody to set as createdByStaffId (null -> no notification recipient).
         Booking booking = buildAndSaveBooking(customerId, serviceType, issueDescription, serviceAddress,
                 preferredDate, availableStart, availableEnd, 1, null);
-        return BookingMapper.toExternalDto(booking);
+        // No technician assigned yet at creation — empty list, no lookup needed.
+        return BookingMapper.toExternalDto(booking, Collections.emptyList());
     }
 
     // ---- BookingInternalService (controller-only, 3.3) ----
@@ -373,7 +375,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                 : null;
         notifySbp(saved, "SCHEDULED", technicianId, technicianName, scheduledAt);
 
-        return Optional.of(BookingMapper.toExternalDto(saved));
+        return Optional.of(BookingMapper.toExternalDto(saved, technicianNames));
     }
 
     /** CREATED, CONFIRMED, SCHEDULED -> "CANCELLED BY CUSTOMER" (3.3.M1). */
@@ -383,8 +385,22 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
     public BookingResponse cancel(String bookingId, CancelBookingRequest request) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+        Booking saved = applyCancel(booking, request.reason(), request.evidenceImageUrls());
+        return toResponseWithAssignments(saved);
+    }
 
-        if (!StringUtils.hasText(request.reason())) {
+    @Override
+    public BookingExternalDto cancelFromCustomer(String bookingId, String reason, List<String> evidenceImageUrls) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+        Booking saved = applyCancel(booking, reason, evidenceImageUrls);
+        return BookingMapper.toExternalDto(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
+    }
+
+    /** Shared by the Receptionist-facing cancel() and the SBP-facing cancelFromCustomer() —
+     *  same cancel rules apply regardless of who initiates it (3.3.M1, 4.M2). */
+    private Booking applyCancel(Booking booking, String reason, List<String> evidenceImageUrls) {
+        if (!StringUtils.hasText(reason)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "reason is required to cancel a booking.");
         }
 
@@ -400,13 +416,13 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         }
 
         booking.setStatus(newStatus);
-        booking.setCancelReason(request.reason());
-        booking.setCancelEvidenceImageUrls(request.evidenceImageUrls());
+        booking.setCancelReason(reason);
+        booking.setCancelEvidenceImageUrls(evidenceImageUrls);
         Booking saved = bookingRepository.save(booking);
 
-        notifyReceptionist(saved, newStatus, "Reason: " + request.reason());
+        notifyReceptionist(saved, newStatus, "Reason: " + reason);
 
-        return toResponseWithAssignments(saved);
+        return saved;
     }
 
     /** 3.3.U2 — real-time in-app notification to the Receptionist who created the booking, sent
@@ -434,7 +450,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setStatus("WORKING");
         Booking saved = bookingRepository.save(booking);
 
-        return BookingMapper.toExternalDto(saved);
+        return BookingMapper.toExternalDto(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 
     @Override
@@ -466,7 +482,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
                 + " (Total: " + (serviceFee + materialCost) + ")";
         notifyReceptionist(saved, "COMPLETED", costDetail);
 
-        return BookingMapper.toExternalDto(saved);
+        return BookingMapper.toExternalDto(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 
     @Override
@@ -488,6 +504,6 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
         notifyReceptionist(saved, "ABORTED BY TECHNICIAN", "Reason: " + reason);
 
-        return BookingMapper.toExternalDto(saved);
+        return BookingMapper.toExternalDto(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
 }

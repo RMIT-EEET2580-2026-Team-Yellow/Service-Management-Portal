@@ -120,9 +120,14 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
             return Optional.empty();
         }
 
-        String staffId = jwtUtil.extractStaffId(token);
+        String subject = jwtUtil.extractStaffId(token);
+        RoleConfig role = jwtUtil.extractRole(token);
 
-        return userRepository.findByStaffId(staffId)
+        if (role == RoleConfig.SERVICE) {
+            return Optional.of(new AuthExternalDto(null, subject, null, RoleConfig.SERVICE));
+        }
+
+        return userRepository.findByStaffId(subject)
                 .map(user -> new AuthExternalDto(user.getId(), user.getStaffId(), user.getEmail(), user.getRole()));
     }
 }

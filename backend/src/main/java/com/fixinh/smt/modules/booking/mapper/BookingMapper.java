@@ -4,6 +4,7 @@ import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.booking.dto.internal.BookingResponse;
 import com.fixinh.smt.modules.booking.entity.Booking;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,12 +44,20 @@ public final class BookingMapper {
         );
     }
 
+    /** No assigned technicians known/needed at this call site — use the overload once assignments exist. */
+    public static BookingExternalDto toExternalDto(Booking booking) {
+        return toExternalDto(booking, Collections.emptyList());
+    }
+
     /** Exposed to SBP (4.S1) and to the Technician module's "My Bookings" page (3.3.M6-M8), and
      *  consumed internally by Statistics via BookingExternalService (3.4.S3/M3) for revenue-by-
      *  service-type reporting — only the fields another module is allowed to see (A.2.3). */
-    public static BookingExternalDto toExternalDto(Booking booking) {
+    public static BookingExternalDto toExternalDto(Booking booking, List<String> assignedTechnicianNames) {
         Double totalCost = booking.getServiceFee() != null && booking.getMaterialCost() != null
                 ? booking.getServiceFee() + booking.getMaterialCost()
+                : null;
+        LocalDateTime scheduledDateTime = booking.getPreferredDate() != null && booking.getAvailableStart() != null
+                ? LocalDateTime.of(booking.getPreferredDate(), booking.getAvailableStart())
                 : null;
         return new BookingExternalDto(
                 booking.getId(),
@@ -61,7 +70,12 @@ public final class BookingMapper {
                 booking.getAvailableStart(),
                 booking.getAvailableEnd(),
                 totalCost,
-                booking.getServiceFee()
+                booking.getServiceFee(),
+                booking.getCreatedAt(),
+                assignedTechnicianNames,
+                booking.getMaterialCost(),
+                booking.getEstimatedDurationMinutes(),
+                scheduledDateTime
         );
     }
 }
