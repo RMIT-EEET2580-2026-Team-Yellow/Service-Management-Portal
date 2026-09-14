@@ -36,6 +36,11 @@ public interface TechnicianExternalService {
      *  used by Booking's list endpoints. Booking must never read TechnicianAssignment directly (A.2.4). */
     List<String> findAssignedTechnicianNames(String bookingId);
 
+    /** Staff IDs (not the Technician module's internal id) of technicians assigned to this
+     *  booking, any assignment status — used for the SBP booking-event webhook (4.M3), which
+     *  needs a technicianId SBP can correlate with its own Rating records. */
+    List<String> findAssignedTechnicianIds(String bookingId);
+
     /** Provisions a Technician profile (with the default Mon-Fri 08:00-20:00 schedule) for a
      *  newly created TECHNICIAN staff account, so they can be assigned/scheduled immediately
      *  without first visiting the schedule page. Idempotent — a no-op if one already exists. */

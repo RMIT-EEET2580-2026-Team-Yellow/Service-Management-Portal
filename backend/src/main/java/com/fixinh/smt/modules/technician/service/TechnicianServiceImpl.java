@@ -486,6 +486,16 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
                 .toList();
     }
 
+    @Override
+    public List<String> findAssignedTechnicianIds(String bookingId) {
+        return technicianAssignmentRepository.findByBookingId(bookingId).stream()
+                .map(TechnicianAssignment::getTechnicianId)
+                .map(technicianRepository::findById)
+                .flatMap(Optional::stream)
+                .map(Technician::getStaffId)
+                .toList();
+    }
+
     // ---- TechnicianInternalService (controller-only, 3.3.M6-M8) ----
 
     @Override

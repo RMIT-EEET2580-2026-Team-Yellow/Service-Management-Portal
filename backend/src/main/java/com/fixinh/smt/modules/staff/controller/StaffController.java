@@ -1,5 +1,6 @@
 package com.fixinh.smt.modules.staff.controller;
 
+import com.fixinh.smt.common.security.RoleConfig;
 import com.fixinh.smt.common.web.ApiResponse;
 import com.fixinh.smt.modules.staff.dto.internal.StaffRequest;
 import com.fixinh.smt.modules.staff.dto.internal.StaffResponse;
@@ -51,5 +52,16 @@ public class StaffController {
     public ApiResponse<Void> delete(@PathVariable String staffId) {
         staffInternalService.delete(staffId);
         return ApiResponse.ok(null);
+    }
+
+    /** 3.5.M2/4.M4 — SBT's Admin Portal proxies its Staff search here using a SERVICE token,
+     *  not an ADMIN user token, so this overrides the class-level ADMIN-only restriction. */
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('SERVICE')")
+    public ApiResponse<List<StaffResponse>> search(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) RoleConfig role,
+            @RequestParam(required = false) Boolean active) {
+        return ApiResponse.ok(staffInternalService.search(query, role, active));
     }
 }

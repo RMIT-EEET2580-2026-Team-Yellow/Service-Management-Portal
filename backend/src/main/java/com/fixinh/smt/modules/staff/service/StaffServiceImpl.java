@@ -19,6 +19,7 @@ import com.fixinh.smt.common.util.ValidationUtil;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -58,8 +59,20 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
     @Override
     public List<StaffExternalDto> search(String nameIdOrEmail) {
-        // TODO Milestone 2: case-insensitive pattern match on name/id/email (3.5.M2).
-        throw new UnsupportedOperationException("Milestone 2");
+        return staffShardRepository.findAllAcrossShards().stream()
+                .filter(staff -> matchesQuery(staff, nameIdOrEmail))
+                .map(StaffMapper::toExternalDto)
+                .toList();
+    }
+
+    private boolean matchesQuery(Staff staff, String query) {
+        if (!StringUtils.hasText(query)) {
+            return true;
+        }
+        String needle = query.trim().toLowerCase();
+        return (staff.getId() != null && staff.getId().toLowerCase().contains(needle))
+                || (staff.getFullName() != null && staff.getFullName().toLowerCase().contains(needle))
+                || (staff.getEmail() != null && staff.getEmail().toLowerCase().contains(needle));
     }
 
     // ---- StaffInternalService (controller-only, 3.1) ----
@@ -161,7 +174,6 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
         if (newRegion == currentRegion) {
             saved = staffShardRepository.save(staff, currentRegion);
         } else {
-            // Branch address moved to the other region (3.1.U2) - the document has to move shards.
             staffShardRepository.delete(staff, currentRegion);
             saved = staffShardRepository.insert(staff, newRegion);
         }
@@ -177,5 +189,15 @@ public class StaffServiceImpl implements StaffExternalService, StaffInternalServ
 
         authExternalService.deleteCredentials(staffId);
         staffShardRepository.delete(located.getValue(), located.getKey());
+    }
+
+    @Override
+    public List<StaffResponse> search(String query, RoleConfig role, Boolean active) {
+        return staffShardRepository.findAllAcrossShards().stream()
+                .filter(staff -> matchesQuery(staff, query))
+                .filter(staff -> role == null || staff.getRole() == role)
+                .filter(staff -> active == null || staff.isActive() == active)
+                .map(StaffMapper::toResponse)
+                .toList();
     }
 }
