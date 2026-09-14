@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConfirmBookingModal from "../components/ConfirmBookingModal";
 import AssignTechnicianModal from "../components/AssignTechnicianModal";
 import CancelBookingModal from "../components/CancelBookingModal";
 import BookingTable from "../components/BookingTable";
 import BookingDetailPanel from "../components/BookingDetailPanel";
+import NavIcon from "../../../components/reusable/NavIcon";
 import {
   toDisplayBooking,
   ACTIVE_STATUSES,
@@ -12,6 +13,7 @@ import {
   sortOrderToParam,
 } from "../bookingHelpers";
 import { useBookings } from "../../../common/hooks/useBookings";
+import { useAuth } from "../../../common/hooks/useAuth";
 
 /**
  * Active/Past bookings are fetched from GET /api/v1/bookings/active|past (3.3.S3-S5, M2).
@@ -25,6 +27,9 @@ import { useBookings } from "../../../common/hooks/useBookings";
  */
 export default function BookingListPage() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
   const {
     active,
     past,
@@ -65,6 +70,16 @@ export default function BookingListPage() {
     loadActive();
     loadPast();
   }, [loadActive, loadPast]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
+        setAccountMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (tab !== "active" || searchText.trim()) return;
@@ -155,8 +170,35 @@ export default function BookingListPage() {
           >
             + Create Booking
           </button>
-          <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
-            TH
+          <div ref={accountMenuRef} className="relative">
+            {accountMenuOpen && (
+              <div className="absolute right-0 top-11 z-10 w-48 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
+                <div className="px-2.5 py-2">
+                  <p className="text-sm font-medium text-gray-900">{user?.staffId ?? "Unknown"}</p>
+                  <p className="text-xs text-gray-400">{user?.role ?? ""}</p>
+                </div>
+                <div className="my-1 h-px bg-gray-100" />
+                <button
+                  onClick={async () => {
+                    setAccountMenuOpen(false);
+                    await signOut();
+                    navigate("/");
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-red-600 hover:bg-gray-50"
+                >
+                  <NavIcon name="logout" />
+                  Log out
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              aria-label="Account menu"
+              onClick={() => setAccountMenuOpen((v) => !v)}
+              className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold hover:bg-indigo-700"
+            >
+              {user?.role ? user.role.slice(0, 2) : "TH"}
+            </button>
           </div>
         </div>
       </div>

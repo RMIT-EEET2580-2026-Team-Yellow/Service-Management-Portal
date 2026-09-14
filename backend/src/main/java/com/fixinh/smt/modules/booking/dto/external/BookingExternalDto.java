@@ -18,5 +18,6 @@ public record BookingExternalDto(String bookingId, String customerId, String sta
                                   Double totalCost, Double serviceFee,
                                   LocalDateTime createdAt, List<String> assignedTechnicianNames,
                                   Double materialCost, Integer estimatedDurationMinutes,
-                                  LocalDateTime scheduledDateTime) {
+                                  LocalDateTime scheduledDateTime,
+                                  String signedBillImageUrl, List<String> cancelEvidenceImageUrls) {
 }

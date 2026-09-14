@@ -75,7 +75,9 @@ public final class BookingMapper {
                 assignedTechnicianNames,
                 booking.getMaterialCost(),
                 booking.getEstimatedDurationMinutes(),
-                scheduledDateTime
+                scheduledDateTime,
+                booking.getSignedBillImageUrl(),
+                booking.getCancelEvidenceImageUrls()
         );
     }
 }
