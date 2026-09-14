@@ -6,6 +6,11 @@ services:
       - "27018:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build:
@@ -22,7 +27,18 @@ services:
     volumes:
       - uploads_data:/data/uploads
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+    # A plain TCP check (not an HTTP one) on purpose: 8080 serves HTTPS with a self-signed cert
+    # (PR #166), so a bare curl/wget would need extra -k/--no-check-certificate flags for no real
+    # benefit — we only need to know Tomcat has finished binding the port, which means Spring's
+    # ApplicationContext (and therefore every CommandLineRunner seeder) has already finished.
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
 
   frontend:
     build:
@@ -34,7 +50,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   mongo_data:
