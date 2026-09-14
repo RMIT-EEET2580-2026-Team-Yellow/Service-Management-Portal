@@ -7,6 +7,7 @@ package com.fixinh.smt.modules.booking.service;
 
 import com.fixinh.smt.common.exception.ApiException;
 import com.fixinh.smt.common.exception.ResourceNotFoundException;
+import com.fixinh.smt.integration.sbp.SbpIntegrationPort;
 import com.fixinh.smt.modules.booking.dto.external.BookingExternalDto;
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
 import com.fixinh.smt.modules.booking.dto.internal.*;
@@ -17,6 +18,8 @@ import com.fixinh.smt.modules.booking.service.external.BookingExternalService;
 import com.fixinh.smt.modules.booking.service.internal.BookingInternalService;
 import com.fixinh.smt.modules.notification.service.external.NotificationExternalService;
 import com.fixinh.smt.modules.technician.service.external.TechnicianExternalService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,23 +36,41 @@ import java.util.Optional;
 /**
  * Implements both interfaces (A.3.1/A.3.2). Depends ONLY on other modules' External Interfaces
  * (A.2.4): {@link TechnicianExternalService} for auto-assignment AND for creating/checking
- * TechnicianAssignment rows (3.3.M3–M5), and {@link NotificationExternalService} for
- * status-change alerts (3.3.U2, 4.M3). No direct Repository access into another module.
+ * TechnicianAssignment rows (3.3.M3–M5), {@link NotificationExternalService} for status-change
+ * alerts (3.3.U2), and {@link SbpIntegrationPort} to push CONFIRMED/SCHEDULED events to SBP
+ * (4.M3). No direct Repository access into another module.
  */
 @Service
 public class BookingServiceImpl implements BookingExternalService, BookingInternalService {
 
+    private static final Logger log = LoggerFactory.getLogger(BookingServiceImpl.class);
+
     private final BookingRepository bookingRepository;
     private final TechnicianExternalService technicianExternalService;
     private final NotificationExternalService notificationExternalService;
+    private final SbpIntegrationPort sbpIntegrationPort;
 
     public BookingServiceImpl(
         BookingRepository bookingRepository,
         TechnicianExternalService technicianExternalService,
-        NotificationExternalService notificationExternalService) {
+        NotificationExternalService notificationExternalService,
+        SbpIntegrationPort sbpIntegrationPort) {
         this.bookingRepository = bookingRepository;
         this.technicianExternalService = technicianExternalService;
         this.notificationExternalService = notificationExternalService;
+        this.sbpIntegrationPort = sbpIntegrationPort;
+    }
+
+    /** Best-effort push to SBP (4.M3) — a failure here must never fail or roll back the Booking
+     *  status change that triggered it, so exceptions are caught and logged, not propagated. */
+    private void notifySbp(Booking booking, String status, String technicianId, String technicianName,
+                            LocalDateTime scheduledAt) {
+        try {
+            sbpIntegrationPort.notifyBookingEvent(booking.getId(), booking.getCustomerId(), status,
+                    booking.getServiceType(), technicianId, technicianName, scheduledAt);
+        } catch (Exception ex) {
+            log.warn("Failed to notify SBP of booking {} status {}: {}", booking.getId(), status, ex.getMessage());
+        }
     }
 
     // ---- BookingExternalService (consumed by Statistics module + SBP integration, 4.S1) ----
@@ -243,10 +264,10 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setEstimatedServiceFee(request.estimatedServiceFee());
         booking.setEstimatedDurationMinutes(request.estimatedDurationMinutes());
         booking.setStatus("CONFIRMED");
-        // TODO Milestone 2: inform SBP that the booking is CONFIRMED (4.M3) — SbpIntegrationPort is
-        // currently inbound-only (SMT calling SBP's Rating/Statistics/Customer APIs); there is no
-        // outbound "push to SBP" client yet, so this still needs its own adapter to be built.
         Booking saved = bookingRepository.save(booking);
+        // 4.M3 — no technician is assigned yet at this point (assignment only starts below),
+        // so technicianId/technicianName/scheduledAt are not yet known.
+        notifySbp(saved, "CONFIRMED", null, null, null);
 
         // Auto-assign as many available technicians as this job needs (up to
         // requiredTechnicianCount) right away — the Receptionist only needs "Assign Technician"
@@ -333,7 +354,18 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
         booking.setStatus("SCHEDULED");
         Booking saved = bookingRepository.save(booking);
-        
+
+        // 4.M3 — the webhook schema only carries a single technicianId/technicianName; for a
+        // multi-technician booking (requiredTechnicianCount > 1) we report the first assignment.
+        List<String> technicianIds = technicianExternalService.findAssignedTechnicianIds(bookingId);
+        List<String> technicianNames = technicianExternalService.findAssignedTechnicianNames(bookingId);
+        String technicianId = technicianIds.isEmpty() ? null : technicianIds.get(0);
+        String technicianName = technicianNames.isEmpty() ? null : technicianNames.get(0);
+        LocalDateTime scheduledAt = booking.getPreferredDate() != null && booking.getAvailableStart() != null
+                ? LocalDateTime.of(booking.getPreferredDate(), booking.getAvailableStart())
+                : null;
+        notifySbp(saved, "SCHEDULED", technicianId, technicianName, scheduledAt);
+
         return Optional.of(BookingMapper.toExternalDto(saved));
     }
 
