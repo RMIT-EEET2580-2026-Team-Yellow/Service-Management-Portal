@@ -28,8 +28,8 @@ public class SbpServiceTokenProvider {
 
     public SbpServiceTokenProvider(
             @Qualifier("sbpRestClient") RestClient restClient,
-            @Value("${smt.integration.sbp.client-id:CHANGE_ME_provisioned_with_SBT}") String clientId,
-            @Value("${smt.integration.sbp.client-secret:CHANGE_ME_provisioned_with_SBT}") String clientSecret) {
+            @Value("${smt.integration.sbp.client-id:smt-service-client}") String clientId,
+            @Value("${smt.integration.sbp.client-secret:smt-service-secret-changeit}") String clientSecret) {
         this.restClient = restClient;
         this.clientId = clientId;
         this.clientSecret = clientSecret;

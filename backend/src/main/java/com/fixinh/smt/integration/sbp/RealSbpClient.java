@@ -1,17 +1,10 @@
-// Path in repo: backend/src/main/java/com/fixinh/smt/integration/sbp/RealSbpClient.java
-// CHANGE: implemented against SBT's published "SBP API Reference" (Integration section, 2026-09-10):
-//   - getCustomer / getRatingForBooking map field-by-field against SBT's documented response shape,
-//     which does not match our SbpCustomerDto/SbpRatingDto field names 1:1 (see private wire DTOs below).
-//   - notifyBookingEvent posts to /integration/bookings/events (the one endpoint SBT marked "live").
-//   - getServiceTypeRatingStats/getTechnicianRatingStats are NOT implemented: SBT's endpoints take a
-//     single {id} path segment and return ONE stats object, but SbpIntegrationPort's methods take no
-//     id and return a List — SMT has no ServiceType registry to enumerate ids from either. This is a
-//     real contract mismatch to resolve with SBT, not something to guess at silently.
+
 package com.fixinh.smt.integration.sbp;
 
 import com.fixinh.smt.integration.sbp.dto.SbpCustomerDto;
 import com.fixinh.smt.integration.sbp.dto.SbpRatingDto;
 import com.fixinh.smt.integration.sbp.dto.SbpRatingStatsDto;
+import com.fixinh.smt.modules.servicetype.service.external.ServiceTypeExternalService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -29,10 +22,13 @@ public class RealSbpClient implements SbpIntegrationPort {
 
     private final RestClient restClient;
     private final SbpServiceTokenProvider tokenProvider;
+    private final ServiceTypeExternalService serviceTypeExternalService;
 
-    public RealSbpClient(@Qualifier("sbpRestClient") RestClient restClient, SbpServiceTokenProvider tokenProvider) {
+    public RealSbpClient(@Qualifier("sbpRestClient") RestClient restClient, SbpServiceTokenProvider tokenProvider,
+                          ServiceTypeExternalService serviceTypeExternalService) {
         this.restClient = restClient;
         this.tokenProvider = tokenProvider;
+        this.serviceTypeExternalService = serviceTypeExternalService;
     }
 
     private RestClient.RequestHeadersSpec<?> authorized(RestClient.RequestHeadersSpec<?> spec) {
@@ -76,11 +72,30 @@ public class RealSbpClient implements SbpIntegrationPort {
 
     @Override
     public List<SbpRatingStatsDto> getServiceTypeRatingStats(String period) {
-        throw new UnsupportedOperationException(
-                "SBP's GET /integration/ratings/statistics/service-types/{id} takes a single service-type "
-                        + "id and returns one object, but SMT has no ServiceType registry to enumerate ids "
-                        + "from, and this method's signature (period only, returns a List) predates that "
-                        + "contract. Needs clarification with the SBT team before this can be implemented.");
+        return serviceTypeExternalService.listNames().stream()
+                .map(name -> fetchServiceTypeStats(name, period))
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    private Optional<SbpRatingStatsDto> fetchServiceTypeStats(String serviceTypeName, String period) {
+        try {
+            SbpRatingStatsDto stats = authorized(restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/integration/ratings/statistics/service-types/{id}")
+                            .queryParam("period", period)
+                            .build(serviceTypeName)))
+                    .retrieve()
+                    .body(SbpRatingStatsDto.class);
+
+            if (stats == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new SbpRatingStatsDto(serviceTypeName, stats.subjectType(), stats.averageOverall(),
+                    stats.averageIntegrity(), stats.averageQuality(), stats.averageFriendliness()));
+        } catch (HttpClientErrorException.NotFound ex) {
+            return Optional.empty();
+        }
     }
 
     @Override
