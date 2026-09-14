@@ -1,27 +1,27 @@
 import { useState } from "react";
+import ImageUpload from "../../../components/reusable/ImageUpload";
 
 /**
  * Wired to PATCH /api/v1/technicians/{technicianId}/bookings/{bookingId}/complete (3.3.M7).
- * WORKING -> COMPLETED. There is no image-upload endpoint yet, so the signed bill is entered
- * as a URL for now (same caveat as CancelBookingModal's evidence upload).
+ * WORKING -> COMPLETED.
  */
 export default function CompleteBookingModal({ booking, onBack, onConfirm, submitting, submitError }) {
   const [serviceFee, setServiceFee] = useState("");
   const [materialCost, setMaterialCost] = useState("");
-  const [signedBillImageUrl, setSignedBillImageUrl] = useState("");
+  const [billImageUrls, setBillImageUrls] = useState([]);
 
   if (!booking) return null;
 
   const feeValid = serviceFee !== "" && Number(serviceFee) >= 0;
   const costValid = materialCost !== "" && Number(materialCost) >= 0;
-  const urlValid = signedBillImageUrl.trim().length > 0;
+  const urlValid = billImageUrls.length > 0;
   const canSubmit = feeValid && costValid && urlValid && !submitting;
 
   function handleConfirm() {
     onConfirm({
       serviceFee: Number(serviceFee),
       materialCost: Number(materialCost),
-      signedBillImageUrl: signedBillImageUrl.trim(),
+      signedBillImageUrl: billImageUrls[0],
     });
   }
 
@@ -78,21 +78,12 @@ export default function CompleteBookingModal({ booking, onBack, onConfirm, submi
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1.5">
-              Signed Bill Image URL
-            </label>
-            <input
-              type="text"
-              value={signedBillImageUrl}
-              onChange={(e) => setSignedBillImageUrl(e.target.value)}
-              placeholder="https://…"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p className="text-[11px] text-gray-400 mt-1">
-              No image upload endpoint yet — paste the URL of the signed bill photo.
-            </p>
-          </div>
+          <ImageUpload
+            label="Signed Bill Image"
+            urls={billImageUrls}
+            onChange={setBillImageUrls}
+            multiple={false}
+          />
         </div>
 
         <div className="px-6 py-4 flex justify-end gap-2.5">

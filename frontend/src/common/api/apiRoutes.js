@@ -13,4 +13,6 @@ export const API_ROUTES = {
   STATISTICS: "/statistics",
 
   NOTIFICATIONS: "/notifications",
+
+  FILES: "/files",
 };

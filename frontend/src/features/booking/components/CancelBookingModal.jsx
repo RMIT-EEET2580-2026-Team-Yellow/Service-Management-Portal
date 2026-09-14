@@ -1,13 +1,13 @@
 import { useState } from "react";
+import ImageUpload from "../../../components/reusable/ImageUpload";
 
 /**
  * Wired to PATCH /api/v1/bookings/{id}/cancel (3.3.M1). Status transition rule:
  * CREATED/CONFIRMED/SCHEDULED → CANCELLED BY CUSTOMER; WORKING → TERMINATED BY CUSTOMER.
- * Evidence image upload isn't wired yet — no upload endpoint exists on the backend —
- * so evidenceImageUrls is always sent as an empty list for now.
  */
 export default function CancelBookingModal({ booking, onBack, onConfirm, cancelling, cancelError }) {
   const [reason, setReason] = useState("");
+  const [evidenceImageUrls, setEvidenceImageUrls] = useState([]);
 
   if (!booking) return null;
 
@@ -15,7 +15,7 @@ export default function CancelBookingModal({ booking, onBack, onConfirm, cancell
     booking.status === "WORKING" ? "TERMINATED BY CUSTOMER" : "CANCELLED BY CUSTOMER";
 
   function handleConfirm() {
-    onConfirm(reason, targetStatus);
+    onConfirm(reason, evidenceImageUrls);
   }
 
   return (
@@ -55,14 +55,13 @@ export default function CancelBookingModal({ booking, onBack, onConfirm, cancell
             />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1.5">
-              Evidence (photo)
-            </label>
-            <div className="border-2 border-dashed border-indigo-200 bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-lg px-4 py-5 text-center cursor-pointer">
-              📷 Upload evidence image
-            </div>
-          </div>
+          <ImageUpload
+            label="Evidence (photo)"
+            urls={evidenceImageUrls}
+            onChange={setEvidenceImageUrls}
+            multiple
+            maxFiles={5}
+          />
         </div>
 
         <div className="px-6 py-4 flex justify-end gap-2.5">

@@ -36,3 +36,51 @@ export async function api(endpoint, options = {}) {
 
   return result;
 }
+
+// BASE_URL is "<origin>/api/v1" — files come back from the backend as an app-relative path
+// (e.g. "/api/v1/files/<uuid>.jpg") rather than a full URL, so an <img src> needs this prefix
+// to reach port 8080 instead of resolving against the frontend's own origin on 5173.
+const API_ORIGIN = BASE_URL.replace(/\/api\/v1$/, "");
+
+/** Resolves a backend-relative file URL (as returned by uploadFile) into one a browser can load
+ *  directly, e.g. in an <img src>. Already-absolute URLs pass through unchanged. */
+export function resolveFileUrl(url) {
+  return /^https?:\/\//i.test(url) ? url : `${API_ORIGIN}${url}`;
+}
+
+/**
+ * Multipart upload — kept separate from api() because that helper always forces
+ * "Content-Type: application/json", which would break the multipart boundary fetch needs to set
+ * itself from the FormData body.
+ */
+export async function uploadFile(endpoint, file) {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(`Upload failed (HTTP ${response.status})`);
+  }
+
+  if (!response.ok || result.success === false) {
+    throw new Error(result.message || "Upload failed");
+  }
+
+  return result.data;
+}

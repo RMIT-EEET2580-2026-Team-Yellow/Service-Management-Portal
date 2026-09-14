@@ -18,6 +18,9 @@ services:
       - MONGO_URI
       - MONGO_URI_NORTHERN
       - MONGO_URI_SOUTHERN
+      - STORAGE_UPLOAD_DIR=/data/uploads
+    volumes:
+      - uploads_data:/data/uploads
     depends_on:
       - mongo
 
@@ -35,3 +38,4 @@ services:
 
 volumes:
   mongo_data:
+  uploads_data:
