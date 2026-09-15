@@ -111,6 +111,15 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         return BookingMapper.toExternalDto(booking, Collections.emptyList());
     }
 
+    /** Lets the Receptionist confirm they have the right customer before creating a booking on
+     *  their behalf, rather than only validating that the id is non-blank (3.3.S1/S2, 4.M1). */
+    @Override
+    public CustomerLookupResponse lookupCustomer(String customerId) {
+        return sbpIntegrationPort.getCustomer(customerId)
+                .map(c -> new CustomerLookupResponse(c.customerId(), c.fullName(), c.phoneNumber()))
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + customerId));
+    }
+
     // ---- BookingInternalService (controller-only, 3.3) ----
 
     @Override
@@ -420,7 +429,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setCancelEvidenceImageUrls(evidenceImageUrls);
         Booking saved = bookingRepository.save(booking);
 
-        notifyReceptionist(saved, newStatus, "Reason: " + reason);
+        notifyReceptionist(saved, newStatus, "Reason: " + reason, null);
 
         return saved;
     }
@@ -430,10 +439,12 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
      *  ABORTED BY TECHNICIAN. Silently a no-op if the booking has no recorded creator (SBP-created
      *  bookings, or data created before createdByStaffId existed) — nobody to notify.
      *  @param detail extra context shown in the notification body — e.g. cancel/abort reason, or
-     *                 cost breakdown on completion. Pass null for none. */
-    private void notifyReceptionist(Booking booking, String newStatus, String detail) {
+     *                 cost breakdown on completion. Pass null for none.
+     *  @param imageUrl the technician's signed-bill photo on COMPLETED; null for every other
+     *                   status — nothing else currently collects an image. */
+    private void notifyReceptionist(Booking booking, String newStatus, String detail, String imageUrl) {
         if (StringUtils.hasText(booking.getCreatedByStaffId())) {
-            notificationExternalService.notifyStatusChange(booking.getCreatedByStaffId(), booking.getId(), newStatus, detail);
+            notificationExternalService.notifyStatusChange(booking.getCreatedByStaffId(), booking.getId(), newStatus, detail, imageUrl);
         }
     }
 
@@ -480,7 +491,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
 
         String costDetail = "Service fee: " + serviceFee + ", Material cost: " + materialCost
                 + " (Total: " + (serviceFee + materialCost) + ")";
-        notifyReceptionist(saved, "COMPLETED", costDetail);
+        notifyReceptionist(saved, "COMPLETED", costDetail, saved.getSignedBillImageUrl());
 
         return BookingMapper.toExternalDto(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }
@@ -502,7 +513,7 @@ public class BookingServiceImpl implements BookingExternalService, BookingIntern
         booking.setCancelReason(reason);
         Booking saved = bookingRepository.save(booking);
 
-        notifyReceptionist(saved, "ABORTED BY TECHNICIAN", "Reason: " + reason);
+        notifyReceptionist(saved, "ABORTED BY TECHNICIAN", "Reason: " + reason, null);
 
         return BookingMapper.toExternalDto(saved, technicianExternalService.findAssignedTechnicianNames(bookingId));
     }

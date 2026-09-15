@@ -31,6 +31,7 @@ public class Notification implements Persistable<String> {
     private String bookingId;
     private String message;
     private boolean read;
+    private String imageUrl;
 
     @CreatedDate
     private LocalDateTime createdAt;

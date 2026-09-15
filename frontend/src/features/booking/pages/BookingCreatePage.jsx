@@ -20,12 +20,42 @@ const TODAY = new Date().toISOString().slice(0, 10);
 /** Receptionist creates a Service Booking for exactly one Repair Service (3.3.S1/S2). */
 export default function BookingCreatePage() {
   const navigate = useNavigate();
-  const { create, creating, createError } = useBookings();
+  const {
+    create,
+    creating,
+    createError,
+    customerLookup,
+    lookingUpCustomer,
+    customerLookupError,
+    lookupCustomer,
+    resetCustomerLookup,
+  } = useBookings();
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
 
+  // The Receptionist only ever sees a confirmed name/phone for the exact id currently in the
+  // field — if they edit it after looking someone up, that confirmation must not linger and look
+  // like it still applies to the new value.
+  const customerVerified = Boolean(customerLookup) && customerLookup.customerId === form.customerId.trim();
+
   function update(field) {
-    return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    return (e) => {
+      const value = e.target.value;
+      setForm((prev) => ({ ...prev, [field]: value }));
+      if (field === "customerId") {
+        resetCustomerLookup();
+      }
+    };
+  }
+
+  async function handleLookupCustomer() {
+    const customerId = form.customerId.trim();
+    if (!customerId) {
+      setFormError("Enter a Customer ID first.");
+      return;
+    }
+    setFormError(null);
+    await lookupCustomer(customerId);
   }
 
   function updateNumber(field) {
@@ -37,6 +67,7 @@ export default function BookingCreatePage() {
 
   function validate() {
     if (!form.customerId.trim()) return "Customer ID is required.";
+    if (!customerVerified) return "Look up the Customer ID and confirm it's the right person before creating the booking.";
     if (!form.serviceAddress.trim()) return 'Service address is required, e.g. "22 Le Loi, District 1, HCMC".';
     if (!form.preferredDate) return "Preferred service date is required.";
     if (form.preferredDate < TODAY) return "Preferred service date cannot be in the past.";
@@ -92,13 +123,34 @@ export default function BookingCreatePage() {
               <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1.5">
                 Customer ID
               </label>
-              <input
-                type="text"
-                placeholder="Customer's account ID (owned by SBP)"
-                value={form.customerId}
-                onChange={update("customerId")}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Customer's account ID (owned by SBP)"
+                  value={form.customerId}
+                  onChange={update("customerId")}
+                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleLookupCustomer}
+                  disabled={lookingUpCustomer || !form.customerId.trim()}
+                  className="shrink-0 text-sm font-bold text-indigo-600 bg-white border border-gray-200 rounded-lg px-4 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {lookingUpCustomer ? "Looking up…" : "Look up"}
+                </button>
+              </div>
+
+              {customerVerified && (
+                <p className="mt-1.5 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                  ✓ {customerLookup.fullName} — {customerLookup.phoneNumber}
+                </p>
+              )}
+              {!customerVerified && customerLookupError && (
+                <p className="mt-1.5 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {customerLookupError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -210,7 +262,8 @@ export default function BookingCreatePage() {
             </button>
             <button
               type="submit"
-              disabled={creating}
+              disabled={creating || !customerVerified}
+              title={!customerVerified ? "Look up and confirm the customer first" : undefined}
               className="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg px-4 py-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {creating ? "Creating…" : "Create Booking"}

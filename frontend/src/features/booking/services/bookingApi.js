@@ -56,3 +56,9 @@ export function assignTechnicians(bookingId, technicianIds) {
     body: JSON.stringify(technicianIds)
   });
 }
+
+/** Service Tier — talks to GET /api/v1/bookings/customers/{customerId} (4.M1). Lets the
+ *  Receptionist confirm they have the right customer before creating a booking on their behalf. */
+export function lookupCustomer(customerId) {
+  return api(`${API_ROUTES.BOOKINGS}/customers/${encodeURIComponent(customerId)}`);
+}

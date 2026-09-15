@@ -33,6 +33,10 @@ import {
   assignBookingStart,
   assignBookingSuccess,
   assignBookingFailure,
+  lookupCustomerStart,
+  lookupCustomerSuccess,
+  lookupCustomerFailure,
+  clearCustomerLookup,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
@@ -56,7 +60,10 @@ export function useBookings() {
     cancelling,
     cancelError,
     assigning,
-    assignError
+    assignError,
+    customerLookup,
+    lookingUpCustomer,
+    customerLookupError
   } = useSelector((state) => state.booking);
 
   const create = useCallback(
@@ -166,6 +173,25 @@ export function useBookings() {
     [dispatch]
   );
 
+  const lookupCustomer = useCallback(
+    async (customerId) => {
+      dispatch(lookupCustomerStart());
+      try {
+        const response = await bookingApi.lookupCustomer(customerId);
+        dispatch(lookupCustomerSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(lookupCustomerFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
+  const resetCustomerLookup = useCallback(() => {
+    dispatch(clearCustomerLookup());
+  }, [dispatch]);
+
   return {
     creating,
     createError,
@@ -192,6 +218,11 @@ export function useBookings() {
     cancel,
     assigning,
     assignError,
-    assign
+    assign,
+    customerLookup,
+    lookingUpCustomer,
+    customerLookupError,
+    lookupCustomer,
+    resetCustomerLookup
   };
 }

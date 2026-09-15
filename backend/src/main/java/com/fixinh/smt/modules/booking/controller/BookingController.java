@@ -64,4 +64,11 @@ public class BookingController {
     public ApiResponse<BookingResponse> cancel(@PathVariable String bookingId, @Valid @RequestBody CancelBookingRequest request) {
         return ApiResponse.ok(bookingInternalService.cancel(bookingId, request));
     }
+
+    /** Look up a customer by id against SBP before creating a booking on their behalf — lets the
+     *  Receptionist confirm they have the right person, not just a well-formed id (4.M1). */
+    @GetMapping("/customers/{customerId}")
+    public ApiResponse<CustomerLookupResponse> lookupCustomer(@PathVariable String customerId) {
+        return ApiResponse.ok(bookingInternalService.lookupCustomer(customerId));
+    }
 }
