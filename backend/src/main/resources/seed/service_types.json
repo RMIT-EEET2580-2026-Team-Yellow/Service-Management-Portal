@@ -1,5 +1,5 @@
 [
-  { "name": "Plumbing" },
-  { "name": "Electrical" },
-  { "name": "Electronics" }
+  { "id": "76635c5a-7c0d-48f1-a6fd-f1d46f824593", "name": "Plumbing" },
+  { "id": "0e65cd1c-83d6-4370-be0b-f65784871eb6", "name": "Electrical" },
+  { "id": "050619e2-009e-4e14-9e28-5e6a4605fe8b", "name": "Electronics" }
 ]

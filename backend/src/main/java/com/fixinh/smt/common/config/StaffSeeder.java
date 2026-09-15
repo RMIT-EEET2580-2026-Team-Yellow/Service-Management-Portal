@@ -25,6 +25,15 @@ import java.util.List;
  * fresh local Mongo container (docker-compose {@code mongo} service, empty volume) doesn't force
  * you to hand-create every account through the UI before you can test Booking/Technician flows.
  * Runs after {@link MasterAdminSeeder} — same idempotency pattern (existsByEmail early-return).
+ *
+ * <p><strong>Ids are pinned, not generated.</strong> {@code Staff.id} and {@code Technician.id}
+ * default to {@code UUID.randomUUID()}, so every fresh Mongo volume used to mint new ones. That
+ * is invisible inside SMT — the links are all created together — but it is not invisible outside
+ * it: SBP persists the {@code technicianId} we send on the booking-event webhook (4.M3) and
+ * aggregates per-technician rating statistics against it (their 3.4.U2, which our 3.4.S1/S5
+ * require them to provide). After a reseed those stored ids matched nothing, and the statistics
+ * came back as a clean 200 full of zeroes rather than an error. The values below are the ones
+ * that were live on 15/09, so existing data keeps working and a fresh volume reproduces them.
  */
 @Component
 @Order(3)
@@ -57,19 +66,30 @@ public class StaffSeeder implements CommandLineRunner {
         }
 
         seedStaff("Nguyen Van Le Tan", "receptionist.hn@fixinh.vn", "0901111111",
-                RoleConfig.RECEPTIONIST, "Thành phố Hà Nội");
+                RoleConfig.RECEPTIONIST, "Thành phố Hà Nội",
+                "b1a7c410-7f2a-4a6e-9c31-2f6d8a10c001", null);
         seedStaff("Tran Van Ky Thuat", "technician.hn@fixinh.vn", "0902222222",
-                RoleConfig.TECHNICIAN, "Thành phố Hà Nội");
+                RoleConfig.TECHNICIAN, "Thành phố Hà Nội",
+                "a3f83091-8c92-4601-b921-6a180cddb0c8", "36edea37-8bc6-4787-bad6-a5bc4200c0df");
         seedStaff("Le Thi Le Tan", "receptionist.hcm@fixinh.vn", "0903333333",
-                RoleConfig.RECEPTIONIST, "Thành phố Hồ Chí Minh");
+                RoleConfig.RECEPTIONIST, "Thành phố Hồ Chí Minh",
+                "b1a7c410-7f2a-4a6e-9c31-2f6d8a10c002", null);
         seedStaff("Pham Van Ky Thuat", "technician.hcm@fixinh.vn", "0904444444",
-                RoleConfig.TECHNICIAN, "Thành phố Hồ Chí Minh");
+                RoleConfig.TECHNICIAN, "Thành phố Hồ Chí Minh",
+                "d0a0abae-6849-47df-9df8-8db450675d19", "902aeb99-528d-4fcb-a60b-e970f687851c");
 
         System.out.println("Seeded 4 sample staff (2 per region).");
     }
 
-    private void seedStaff(String fullName, String email, String phone, RoleConfig role, String province) {
+    /**
+     * @param staffId      pinned Staff id — SBP stores this as the webhook's technicianId, so it
+     *                     must survive a reseed
+     * @param technicianId pinned Technician document id, or null for a non-technician role
+     */
+    private void seedStaff(String fullName, String email, String phone, RoleConfig role, String province,
+                            String staffId, String technicianId) {
         Staff staff = Staff.builder()
+                .id(staffId)
                 .fullName(fullName)
                 .email(email)
                 .phoneNumber(phone)
@@ -94,6 +114,7 @@ public class StaffSeeder implements CommandLineRunner {
 
         if (role == RoleConfig.TECHNICIAN) {
             Technician technician = Technician.builder()
+                    .id(technicianId)
                     .staffId(saved.getId())
                     .build();
             Technician savedTechnician = technicianRepository.save(technician);

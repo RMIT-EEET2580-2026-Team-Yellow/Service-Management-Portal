@@ -1,5 +1,6 @@
 package com.fixinh.smt.modules.servicetype.service;
 
+import com.fixinh.smt.modules.servicetype.dto.external.ServiceTypeRef;
 import com.fixinh.smt.modules.servicetype.dto.internal.ServiceTypeResponse;
 import com.fixinh.smt.modules.servicetype.entity.ServiceType;
 import com.fixinh.smt.modules.servicetype.mapper.ServiceTypeMapper;
@@ -30,6 +31,13 @@ public class ServiceTypeServiceImpl implements ServiceTypeInternalService, Servi
     public List<String> listNames() {
         return serviceTypeRepository.findAll().stream()
                 .map(ServiceType::getName)
+                .toList();
+    }
+
+    @Override
+    public List<ServiceTypeRef> listRefs() {
+        return serviceTypeRepository.findAll().stream()
+                .map(serviceType -> new ServiceTypeRef(serviceType.getId(), serviceType.getName()))
                 .toList();
     }
 }
