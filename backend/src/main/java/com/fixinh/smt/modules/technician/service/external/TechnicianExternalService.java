@@ -5,6 +5,7 @@
 package com.fixinh.smt.modules.technician.service.external;
 
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
+import com.fixinh.smt.modules.technician.dto.external.TechnicianRef;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -45,4 +46,9 @@ public interface TechnicianExternalService {
      *  newly created TECHNICIAN staff account, so they can be assigned/scheduled immediately
      *  without first visiting the schedule page. Idempotent — a no-op if one already exists. */
     void createDefaultProfile(String staffId);
+
+    /** Every technician as (staffId, fullName) — the integration layer needs the STAFF id to
+     *  query SBP's per-technician rating statistics (3.4.U2), because that is the id the
+     *  booking-event webhook sent, and the name to label the row. */
+    List<TechnicianRef> listRefs();
 }

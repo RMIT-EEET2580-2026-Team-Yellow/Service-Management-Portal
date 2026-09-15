@@ -10,6 +10,7 @@ import com.fixinh.smt.modules.booking.service.external.BookingExternalService;
 import com.fixinh.smt.modules.staff.dto.external.StaffExternalDto;
 import com.fixinh.smt.modules.staff.service.external.StaffExternalService;
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
+import com.fixinh.smt.modules.technician.dto.external.TechnicianRef;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianResponse;
 import com.fixinh.smt.modules.technician.dto.internal.TechnicianScheduleRequest;
 import com.fixinh.smt.modules.technician.entity.Technician;
@@ -493,6 +494,17 @@ public class TechnicianServiceImpl implements TechnicianExternalService, Technic
                 .map(technicianRepository::findById)
                 .flatMap(Optional::stream)
                 .map(Technician::getStaffId)
+                .toList();
+    }
+
+    @Override
+    public List<TechnicianRef> listRefs() {
+        return technicianRepository.findAll().stream()
+                .map(technician -> new TechnicianRef(
+                        technician.getStaffId(),
+                        staffExternalService.findById(technician.getStaffId())
+                                .map(StaffExternalDto::fullName)
+                                .orElse("Unknown technician")))
                 .toList();
     }
 
