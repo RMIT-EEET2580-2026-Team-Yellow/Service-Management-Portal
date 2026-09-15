@@ -80,6 +80,17 @@ export default function NotificationPage() {
                   {n.message}
                 </Link>
                 <div className="text-[11px] text-gray-400 mt-1">{formatTimestamp(n.createdAt)}</div>
+
+                {/* Only ever set on COMPLETED — the technician's signed-bill photo. */}
+                {n.imageUrl && (
+                  <a href={n.imageUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
+                    <img
+                      src={n.imageUrl}
+                      alt="Signed bill"
+                      className="h-20 w-20 object-cover rounded-lg border border-gray-200"
+                    />
+                  </a>
+                )}
               </div>
 
               {!n.read && (

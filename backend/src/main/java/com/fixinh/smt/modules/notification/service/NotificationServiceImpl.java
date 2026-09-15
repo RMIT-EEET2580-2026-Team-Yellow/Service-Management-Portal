@@ -20,11 +20,9 @@ public class NotificationServiceImpl implements NotificationExternalService, Not
         this.notificationRepository = notificationRepository;
     }
 
-    /**
-     * 3.3.U2 — persists the notification for the Receptionist who created the booking. The
-     */
+
     @Override
-    public void notifyStatusChange(String recipientStaffId, String bookingId, String newStatus, String detail) {
+    public void notifyStatusChange(String recipientStaffId, String bookingId, String newStatus, String detail, String imageUrl) {
         String message = "Booking #" + bookingId + " is now " + newStatus + ".";
         if (StringUtils.hasText(detail)) {
             message += " " + detail;
@@ -35,6 +33,7 @@ public class NotificationServiceImpl implements NotificationExternalService, Not
                 .bookingId(bookingId)
                 .message(message)
                 .read(false)
+                .imageUrl(imageUrl)
                 .build();
 
         notificationRepository.save(notification);
@@ -66,7 +65,8 @@ public class NotificationServiceImpl implements NotificationExternalService, Not
                 notification.getBookingId(),
                 notification.getMessage(),
                 notification.isRead(),
-                notification.getCreatedAt()
+                notification.getCreatedAt(),
+                notification.getImageUrl()
         );
     }
 }

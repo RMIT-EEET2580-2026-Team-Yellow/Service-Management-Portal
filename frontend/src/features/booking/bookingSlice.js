@@ -37,7 +37,11 @@ const bookingSlice = createSlice({
     cancelError: null,
 
     assigning: false,
-    assignError: null
+    assignError: null,
+
+    customerLookup: null,
+    lookingUpCustomer: false,
+    customerLookupError: null
   },
   reducers: {
     createBookingStart(state) {
@@ -142,6 +146,27 @@ const bookingSlice = createSlice({
       state.searching = false;
       state.searchError = action.payload;
     },
+
+    lookupCustomerStart(state) {
+      state.lookingUpCustomer = true;
+      state.customerLookupError = null;
+      state.customerLookup = null;
+    },
+    lookupCustomerSuccess(state, action) {
+      state.lookingUpCustomer = false;
+      state.customerLookup = action.payload;
+    },
+    lookupCustomerFailure(state, action) {
+      state.lookingUpCustomer = false;
+      state.customerLookupError = action.payload;
+    },
+    // Invalidate a previous confirmation the moment the Customer ID field changes again — a
+    // stale "confirmed" name must never stay on screen for a different id (3.3.S1/S2).
+    clearCustomerLookup(state) {
+      state.customerLookup = null;
+      state.lookingUpCustomer = false;
+      state.customerLookupError = null;
+    },
   },
 });
 
@@ -167,6 +192,10 @@ export const {
   assignBookingFailure,
   searchBookingsStart,
   searchBookingsSuccess,
-  searchBookingsFailure
+  searchBookingsFailure,
+  lookupCustomerStart,
+  lookupCustomerSuccess,
+  lookupCustomerFailure,
+  clearCustomerLookup
 } = bookingSlice.actions;
 export default bookingSlice.reducer;

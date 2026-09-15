@@ -23,4 +23,8 @@ public interface BookingInternalService {
     BookingResponse assignTechnicians(String bookingId, List<String> technicianIds);
 
     BookingResponse cancel(String bookingId, CancelBookingRequest request);
+
+    /** Looks up a customer by id against SBP so the Receptionist can confirm they have the right
+     *  person before creating a booking on their behalf (4.M1). Throws if not found. */
+    CustomerLookupResponse lookupCustomer(String customerId);
 }
