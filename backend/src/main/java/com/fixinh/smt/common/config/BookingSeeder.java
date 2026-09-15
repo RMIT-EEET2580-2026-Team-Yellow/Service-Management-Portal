@@ -12,14 +12,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.UUID;
 
-/**
- * Sample Bookings covering a few different lifecycle statuses (3.3), so Active/Past Bookings
- * list, filters, and Statistics revenue have something to show on a freshly-seeded local Mongo
- * without needing to walk the full create -> confirm -> schedule -> ... flow by hand first.
- * Runs after {@link StaffSeeder} so it can attribute bookings to a real Receptionist staffId.
- */
 @Component
 @Order(4)
 public class BookingSeeder implements CommandLineRunner {
@@ -42,19 +35,23 @@ public class BookingSeeder implements CommandLineRunner {
                 .findFirst()
                 .orElse(null);
 
+        // Real customerIds from SBT's fixed seed data not random. BookingSeeder
         bookingRepository.saveAll(List.of(
-                booking("CREATED", "Plumbing", "Vòi nước bị rò rỉ", receptionistId, null, null),
-                booking("CONFIRMED", "Electrical", "Ổ cắm điện bị chập", receptionistId, null, null),
-                booking("COMPLETED", "Electronics", "Sửa tivi không lên hình", receptionistId, 250000.0, 80000.0)
+                booking("CREATED", "Plumbing", "Vòi nước bị rò rỉ", receptionistId, null, null,
+                        "c0000000-0000-0000-0000-000000000001"),  // alice.johnson@gmail.com — NORTH
+                booking("CONFIRMED", "Electrical", "Ổ cắm điện bị chập", receptionistId, null, null,
+                        "c0000000-0000-0000-0000-000000000002"),  // bob.smith@gmail.com — SOUTH
+                booking("COMPLETED", "Electronics", "Sửa tivi không lên hình", receptionistId, 250000.0, 80000.0,
+                        "c0000000-0000-0000-0000-000000000005")   // emma.davis@gmail.com — NORTH
         ));
 
         System.out.println("Seeded 3 sample bookings.");
     }
 
     private Booking booking(String status, String serviceType, String issueDescription, String createdByStaffId,
-                             Double serviceFee, Double materialCost) {
+                             Double serviceFee, Double materialCost, String customerId) {
         return Booking.builder()
-                .customerId(UUID.randomUUID().toString())
+                .customerId(customerId)
                 .createdByStaffId(createdByStaffId)
                 .serviceType(serviceType)
                 .issueDescription(issueDescription)
