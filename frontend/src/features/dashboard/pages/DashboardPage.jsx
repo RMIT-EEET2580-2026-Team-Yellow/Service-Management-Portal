@@ -106,7 +106,7 @@ export default function DashboardPage() {
         if (!cancelled) setTechnicians(res.data ?? []);
       })
       .catch(() => {
-        // ADMIN-only endpoint — a non-Admin viewer simply sees an empty roster.
+        // ADMIN/RECEPTIONIST endpoint — a Technician viewer simply sees an empty roster.
       })
       .finally(() => {
         if (!cancelled) setTechLoading(false);

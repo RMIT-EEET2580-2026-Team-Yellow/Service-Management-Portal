@@ -50,10 +50,12 @@ public class TechnicianController {
         return ApiResponse.ok(technicianInternalService.getByStaffId(staffId));
     }
 
-    /** Dashboard's Technician Availability card (A.2.a: full roster is ADMIN-only reporting,
-     *  mirrors StaffController's own /staff listing). */
+    /** Dashboard's Technician Availability card — also used by the Receptionist dashboard to see
+     *  who's free before confirming/assigning a booking, so RECEPTIONIST reads it too, not just
+     *  ADMIN. Read-only here: creating/editing a Technician's own schedule is still gated
+     *  elsewhere (OWN_TECHNICIAN / ADMIN), this endpoint only lists the existing roster. */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
     public ApiResponse<List<TechnicianResponse>> listAll() {
         return ApiResponse.ok(technicianInternalService.listAll());
     }
