@@ -16,7 +16,7 @@ import java.util.UUID;
 /**
  * Join entity for the 1 Booking – n Technicians relationship (SRS 3.3.M3–M5). Replaces the old
  * flat {@code Booking.assignedTechnicianIds} list so each Technician's accept/reject response
- * can be tracked individually — needed because a Booking only becomes "Scheduled" once ALL
+ * can be tracked individually — needed because a Booking only becomes "SCHEDULED" once ALL
  * assigned Technicians have accepted (3.3.M5).
  *
  * Cardinality agreed with SBT (29–30/7): 1 Booking – n TechnicianAssignment.

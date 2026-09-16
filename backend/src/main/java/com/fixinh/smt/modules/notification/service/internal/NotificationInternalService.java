@@ -10,4 +10,8 @@ public interface NotificationInternalService {
     List<NotificationExternalDto> listFor(String staffId);
 
     void markRead(String notificationId);
+
+    /** "Clear" button on NotificationPage — permanently deletes every notification for this
+     *  staff member (not a soft "mark all as read"). */
+    void clearAll(String staffId);
 }

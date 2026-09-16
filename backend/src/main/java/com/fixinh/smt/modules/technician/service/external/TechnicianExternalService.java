@@ -5,6 +5,7 @@
 package com.fixinh.smt.modules.technician.service.external;
 
 import com.fixinh.smt.modules.technician.dto.external.TechnicianExternalDto;
+import com.fixinh.smt.modules.technician.dto.external.TechnicianRef;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -25,6 +26,29 @@ public interface TechnicianExternalService {
     void createAssignments(String bookingId, List<String> technicianIds);
 
     /** True once every TechnicianAssignment for this booking has status ACCEPTED (3.3.M5) —
-     *  Booking uses this to decide when to flip status to "Scheduled". */
+     *  Booking uses this to decide when to flip status to "SCHEDULED". */
     boolean areAllAssignmentsAccepted(String bookingId);
+
+    /** Count of this booking's PENDING/ACCEPTED assignments (REJECTED doesn't count) — used to
+     *  cap manual/auto assignment at requiredTechnicianCount and to show "X/Y assigned" in the UI. */
+    int countActiveAssignments(String bookingId);
+
+    /** Full names of technicians assigned to this booking, any assignment status (3.3.S4) —
+     *  used by Booking's list endpoints. Booking must never read TechnicianAssignment directly (A.2.4). */
+    List<String> findAssignedTechnicianNames(String bookingId);
+
+    /** Staff IDs (not the Technician module's internal id) of technicians assigned to this
+     *  booking, any assignment status — used for the SBP booking-event webhook (4.M3), which
+     *  needs a technicianId SBP can correlate with its own Rating records. */
+    List<String> findAssignedTechnicianIds(String bookingId);
+
+    /** Provisions a Technician profile (with the default Mon-Fri 08:00-20:00 schedule) for a
+     *  newly created TECHNICIAN staff account, so they can be assigned/scheduled immediately
+     *  without first visiting the schedule page. Idempotent — a no-op if one already exists. */
+    void createDefaultProfile(String staffId);
+
+    /** Every technician as (staffId, fullName) — the integration layer needs the STAFF id to
+     *  query SBP's per-technician rating statistics (3.4.U2), because that is the id the
+     *  booking-event webhook sent, and the name to label the row. */
+    List<TechnicianRef> listRefs();
 }

@@ -16,6 +16,10 @@ public interface BookingExternalService {
 
     Optional<BookingExternalDto> findById(String bookingId);
 
+    /** SBP's "my bookings" list (their RealSmpClient.findBookingsByCustomer, EPIC3.4) - GET
+     *  /api/v1/integration/bookings?customerId={id}, SERVICE-role only. */
+    List<BookingExternalDto> findByCustomerId(String customerId);
+
     List<BookingExternalDto> findCompletedBetween(java.time.LocalDate from, java.time.LocalDate to);
 
     /** Called by SBP to create a booking (mirrors SBP-side 3.3.S1/S2) — 4.S1.
@@ -23,4 +27,18 @@ public interface BookingExternalService {
     BookingExternalDto createFromCustomer(String customerId, String serviceType, String issueDescription,
                                            String serviceAddress, java.time.LocalDate preferredDate,
                                            java.time.LocalTime availableStart, java.time.LocalTime availableEnd);
+ 
+    BookingExternalDto cancelFromCustomer(String bookingId, String reason, List<String> evidenceImageUrls);
+
+    Optional<BookingExternalDto> tryMarkScheduled(String bookingId);
+
+    /** SCHEDULED -> WORKING (3.3.M6), called by the Technician module when its owning technician
+     *  starts the job. Booking must never be written to directly from Technician (A.2.4). */
+    BookingExternalDto startWork(String bookingId);
+
+    /** WORKING -> COMPLETED (3.3.M7), records the final serviceFee/materialCost/signedBillImageUrl. */
+    BookingExternalDto completeWork(String bookingId, double serviceFee, double materialCost, String signedBillImageUrl);
+
+    /** WORKING -> "ABORTED BY TECHNICIAN" (3.3.M8). */
+    BookingExternalDto abortWork(String bookingId, String reason);
 }

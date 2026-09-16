@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
@@ -30,7 +31,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Booking {
+public class Booking implements Persistable<String> {
 
     @Id
     @Builder.Default
@@ -40,6 +41,11 @@ public class Booking {
 
     private String branchId; // pending SBT confirmation (proposed 30/7) — see backlog 6.3/6.6
 
+    // staffId of the Receptionist who created this booking (JWT-derived) — recipient of the
+    // real-time status-change notification (3.3.U2). Null for SBP-created bookings and for any
+    // booking created before this field existed.
+    private String createdByStaffId;
+
     private String serviceType;
     private String issueDescription;
     private String serviceAddress;
@@ -47,6 +53,11 @@ public class Booking {
     private LocalDate preferredDate;
     private LocalTime availableStart;
     private LocalTime availableEnd;
+
+    /** How many technicians this job needs working it at once (e.g. a 2-person lifting job) —
+     *  drives both auto-assign-on-confirm and the cap on manual "Assign Technician". Defaults
+     *  to 1 for bookings that don't set it (including every SBP-created booking). */
+    private Integer requiredTechnicianCount;
 
     /** Created | Confirmed | Scheduled | Working | Completed | Cancelled by Customer |
      *  Terminated by Customer | Aborted by Technician. */
@@ -66,4 +77,15 @@ public class Booking {
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+    /**
+     * The id is pre-populated with a UUID at construction (not left null for Mongo to assign),
+     * so Spring Data's default "is-new" check (id == null) would otherwise treat every insert as
+     * an update and skip {@code @CreatedDate} population. createdAt is only ever set by that
+     * auditing callback, so its absence is what actually marks a not-yet-persisted document.
+     */
+    @Override
+    public boolean isNew() {
+        return createdAt == null;
+    }
 }

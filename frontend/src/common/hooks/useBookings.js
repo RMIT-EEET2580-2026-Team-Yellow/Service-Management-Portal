@@ -1,44 +1,228 @@
 // src/common/hooks/useBookings.js
 //
 // Hook Tier for the Booking feature.
-// Page components (BookingListPage, BookingDetailPage) must not call
-// useSelector/useDispatch directly — they only call this hook, which
-// wraps bookingSlice and exposes a clean, page-friendly API.
+// Page components (BookingListPage, BookingCreatePage) must not call
+// useSelector/useDispatch directly — they only call this hook.
 //
-// Depends on bookingSlice exporting the thunks below (Milestone 2 — the
-// slice file currently exists but is empty).
+// create()/loadActive()/loadPast()/confirm()/cancel()/loadFiltered()/search() are wired up
+// (3.3.S1-S6, M1-M2, M9-M10) — assign is still a Milestone 2 stub on the backend
+// (BookingServiceImpl).
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  fetchActiveBookings,
-  fetchPastBookings,
-  confirmBooking,
-  assignTechnician,
-  cancelBooking,
-} from '../store/bookingSlice';
+  createBookingStart,
+  createBookingSuccess,
+  createBookingFailure,
+  fetchBookingsStart,
+  fetchActiveBookingsSuccess,
+  fetchPastBookingsSuccess,
+  fetchBookingsFailure,
+  confirmBookingStart,
+  confirmBookingSuccess,
+  confirmBookingFailure,
+  cancelBookingStart,
+  cancelBookingSuccess,
+  cancelBookingFailure,
+  fetchFilteredStart,
+  fetchFilteredSuccess,
+  fetchFilteredFailure,
+  searchBookingsStart,
+  searchBookingsSuccess,
+  searchBookingsFailure,
+  assignBookingStart,
+  assignBookingSuccess,
+  assignBookingFailure,
+  lookupCustomerStart,
+  lookupCustomerSuccess,
+  lookupCustomerFailure,
+  clearCustomerLookup,
+} from '../../features/booking/bookingSlice';
+import * as bookingApi from '../../features/booking/services/bookingApi';
 
 export function useBookings() {
   const dispatch = useDispatch();
-  const { active, past, loading, error } = useSelector((state) => state.booking);
+  const {
+    creating,
+    createError,
+    active,
+    past,
+    listLoading,
+    listError,
+    filtered,
+    filterLoading,
+    filterError,
+    searchResults,
+    searching,
+    searchError,
+    confirming,
+    confirmError,
+    cancelling,
+    cancelError,
+    assigning,
+    assignError,
+    customerLookup,
+    lookingUpCustomer,
+    customerLookupError
+  } = useSelector((state) => state.booking);
 
-  const loadActive = useCallback(() => dispatch(fetchActiveBookings()), [dispatch]);
-  const loadPast = useCallback(() => dispatch(fetchPastBookings()), [dispatch]);
-
-  const confirm = useCallback(
-    (bookingId) => dispatch(confirmBooking(bookingId)),
+  const create = useCallback(
+    async (bookingData) => {
+      dispatch(createBookingStart());
+      try {
+        const response = await bookingApi.createBooking(bookingData);
+        dispatch(createBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(createBookingFailure(err.message));
+        return null;
+      }
+    },
     [dispatch]
   );
 
-  const assign = useCallback(
-    (bookingId, technicianId) => dispatch(assignTechnician({ bookingId, technicianId })),
+  const loadActive = useCallback(async () => {
+    dispatch(fetchBookingsStart());
+    try {
+      const response = await bookingApi.fetchActiveBookings();
+      dispatch(fetchActiveBookingsSuccess(response.data));
+    } catch (err) {
+      dispatch(fetchBookingsFailure(err.message));
+    }
+  }, [dispatch]);
+
+  const loadPast = useCallback(async () => {
+    dispatch(fetchBookingsStart());
+    try {
+      const response = await bookingApi.fetchPastBookings();
+      dispatch(fetchPastBookingsSuccess(response.data));
+    } catch (err) {
+      dispatch(fetchBookingsFailure(err.message));
+    }
+  }, [dispatch]);
+
+  const confirm = useCallback(
+    async (bookingId, payload) => {
+      dispatch(confirmBookingStart());
+      try {
+        const response = await bookingApi.confirmBooking(bookingId, payload);
+        dispatch(confirmBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(confirmBookingFailure(err.message));
+        return null;
+      }
+    },
     [dispatch]
   );
 
   const cancel = useCallback(
-    (bookingId) => dispatch(cancelBooking(bookingId)),
+    async (bookingId, payload) => {
+      dispatch(cancelBookingStart());
+      try {
+        const response = await bookingApi.cancelBooking(bookingId, payload);
+        dispatch(cancelBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(cancelBookingFailure(err.message));
+        return null;
+      }
+    },
     [dispatch]
   );
 
-  return { active, past, loading, error, loadActive, loadPast, confirm, assign, cancel };
+  const loadFiltered = useCallback(
+    async (params) => {
+      dispatch(fetchFilteredStart());
+      try {
+        const response = await bookingApi.fetchFilteredBookings(params);
+        dispatch(fetchFilteredSuccess(response.data));
+      } catch (err) {
+        dispatch(fetchFilteredFailure(err.message));
+      }
+    },
+    [dispatch]
+  );
+
+  const search = useCallback(
+    async (query) => {
+      dispatch(searchBookingsStart());
+      try {
+        const response = await bookingApi.searchBookings(query);
+        dispatch(searchBookingsSuccess(response.data));
+      } catch (err) {
+        dispatch(searchBookingsFailure(err.message));
+      }
+    },
+    [dispatch]
+  );
+
+  const assign = useCallback(
+    async (bookingId, technicianIds) => {
+      dispatch(assignBookingStart());
+
+      try {
+        const response = await bookingApi.assignTechnicians(bookingId, technicianIds);
+        dispatch(assignBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(assignBookingFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
+  const lookupCustomer = useCallback(
+    async (customerId) => {
+      dispatch(lookupCustomerStart());
+      try {
+        const response = await bookingApi.lookupCustomer(customerId);
+        dispatch(lookupCustomerSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(lookupCustomerFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
+  const resetCustomerLookup = useCallback(() => {
+    dispatch(clearCustomerLookup());
+  }, [dispatch]);
+
+  return {
+    creating,
+    createError,
+    create,
+    active,
+    past,
+    listLoading,
+    listError,
+    loadActive,
+    loadPast,
+    filtered,
+    filterLoading,
+    filterError,
+    loadFiltered,
+    searchResults,
+    searching,
+    searchError,
+    search,
+    confirming,
+    confirmError,
+    confirm,
+    cancelling,
+    cancelError,
+    cancel,
+    assigning,
+    assignError,
+    assign,
+    customerLookup,
+    lookingUpCustomer,
+    customerLookupError,
+    lookupCustomer,
+    resetCustomerLookup
+  };
 }

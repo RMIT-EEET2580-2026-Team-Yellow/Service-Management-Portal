@@ -1,10 +1,12 @@
 package com.fixinh.smt.modules.staff.controller;
 
+import com.fixinh.smt.common.security.RoleConfig;
 import com.fixinh.smt.common.web.ApiResponse;
 import com.fixinh.smt.modules.staff.dto.internal.StaffRequest;
 import com.fixinh.smt.modules.staff.dto.internal.StaffResponse;
 import com.fixinh.smt.modules.staff.service.internal.StaffInternalService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,9 +14,12 @@ import java.util.List;
 /**
  * Also backs the Staff Search Interface consumed by SBT's Admin Portal (3.5.M2, 4.M4) —
  * exposed under {@code /api/v1/staff/search} for cross-portal use.
+ *
+ * <p>Managing staff accounts (and the roles they carry) is an ADMIN-only capability (A.2.a).
  */
 @RestController
 @RequestMapping("/api/v1/staff")
+@PreAuthorize("hasAnyRole('ADMIN', 'SERVICE')")
 public class StaffController {
 
     private final StaffInternalService staffInternalService;
@@ -41,5 +46,22 @@ public class StaffController {
     @PutMapping("/{staffId}")
     public ApiResponse<StaffResponse> update(@PathVariable String staffId, @Valid @RequestBody StaffRequest request) {
         return ApiResponse.ok(staffInternalService.update(staffId, request));
+    }
+
+    @DeleteMapping("/{staffId}")
+    public ApiResponse<Void> delete(@PathVariable String staffId) {
+        staffInternalService.delete(staffId);
+        return ApiResponse.ok(null);
+    }
+
+    /** 3.5.M2/4.M4 — SBT's Admin Portal proxies its Staff search here using a SERVICE token,
+     *  not an ADMIN user token, so this overrides the class-level ADMIN-only restriction. */
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('SERVICE')")
+    public ApiResponse<List<StaffResponse>> search(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) RoleConfig role,
+            @RequestParam(required = false) Boolean active) {
+        return ApiResponse.ok(staffInternalService.search(query, role, active));
     }
 }
