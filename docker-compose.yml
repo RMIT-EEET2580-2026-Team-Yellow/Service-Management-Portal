@@ -18,13 +18,17 @@ services:
     container_name: smt-backend
     ports:
       - "8080:8080"
+    # Real default values baked in directly (not `- VAR` pass-through) so `docker compose up`
+    # works with zero setup — no .env file to copy first. `${VAR:-default}` still lets anyone
+    # override a value via a real environment variable or a root .env file if they want to,
+    # without that being required.
     environment:
       - MONGO_HOST=mongo
-      - MONGO_URI
-      - MONGO_URI_NORTHERN
-      - MONGO_URI_SOUTHERN
+      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/smt}
+      - MONGO_URI_NORTHERN=${MONGO_URI_NORTHERN:-mongodb://mongo:27017/smt_northern}
+      - MONGO_URI_SOUTHERN=${MONGO_URI_SOUTHERN:-mongodb://mongo:27017/smt_southern}
       - STORAGE_UPLOAD_DIR=/data/uploads
-      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-794584079050-ir6jcdpsb5pe7l9fj7djkveurg8mbieb.apps.googleusercontent.com}
     volumes:
       - uploads_data:/data/uploads
     depends_on:
@@ -47,6 +51,12 @@ services:
     container_name: smt-frontend
     ports:
       - "5173:5173"
+    # Same idea as the backend above: a real default baked in, Vite picks up process.env vars
+    # prefixed VITE_ even with no frontend/.env file present, so no copy step is required here
+    # either. VITE_GOOGLE_CLIENT_ID must match the backend's GOOGLE_CLIENT_ID above (same OAuth
+    # client on both sides) — override both together if you ever swap it out.
+    environment:
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-794584079050-ir6jcdpsb5pe7l9fj7djkveurg8mbieb.apps.googleusercontent.com}
     volumes:
       - ./frontend:/app
       - /app/node_modules
