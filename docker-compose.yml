@@ -24,6 +24,7 @@ services:
       - MONGO_URI_NORTHERN
       - MONGO_URI_SOUTHERN
       - STORAGE_UPLOAD_DIR=/data/uploads
+      - GOOGLE_CLIENT_ID
     volumes:
       - uploads_data:/data/uploads
     depends_on:

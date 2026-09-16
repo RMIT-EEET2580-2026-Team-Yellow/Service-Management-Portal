@@ -14,18 +14,25 @@ import com.fixinh.smt.modules.auth.entity.User;
 import com.fixinh.smt.modules.auth.repository.UserRepository;
 import com.fixinh.smt.modules.auth.service.external.AuthExternalService;
 import com.fixinh.smt.modules.auth.service.internal.AuthInternalService;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class AuthServiceImpl implements AuthInternalService, AuthExternalService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RestClient googleRestClient;
 
     @Value("${smt.service.auth-secret}")
     private String serviceAuthSecret;
@@ -33,10 +40,14 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
     @Value("${smt.service.subject:sbp-service}")
     private String serviceSubject;
 
+    @Value("${smt.google.client-id:}")
+    private String googleClientId;
+
     public AuthServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.googleRestClient = RestClient.builder().baseUrl("https://oauth2.googleapis.com").build();
     }
 
     // ---- AuthInternalService (controller-only) ----
@@ -69,8 +80,52 @@ public class AuthServiceImpl implements AuthInternalService, AuthExternalService
 
     @Override
     public LoginResponse loginWithGoogle(String googleIdToken) {
-        // TODO Milestone 2: 3.2.U1-U3 — reject if no matching Staff account exists.
-        throw new UnsupportedOperationException("Milestone 2");
+        // 3.2.U1-U3: Google only proves the person owns that email — it does not create an
+        // account. Sign-in succeeds only if a Staff/Admin already has matching User credentials
+        // (created via Staff CRUD, see createCredentials below); everyone else is rejected.
+        GoogleTokenInfo tokenInfo = verifyGoogleIdToken(googleIdToken);
+
+        User user = userRepository.findByEmail(tokenInfo.email())
+                .orElseThrow(() -> new UnauthorizedException("No Fixinh account is linked to this Google email"));
+
+        if (user.getGoogleId() == null) {
+            user.setGoogleId(tokenInfo.sub());
+            userRepository.save(user);
+        }
+
+        String token = jwtUtil.generateToken(user.getStaffId(), user.getRole());
+        return new LoginResponse(token, user.getStaffId(), user.getRole());
+    }
+
+    /** Verifies the ID token's signature/expiry/audience via Google's tokeninfo endpoint (the
+     *  documented low-volume-verification approach — fine at Staff-login scale; a JWKS-based
+     *  local verifier would be the next step if this ever needs to scale beyond that). */
+    private GoogleTokenInfo verifyGoogleIdToken(String googleIdToken) {
+        GoogleTokenInfo tokenInfo;
+        try {
+            tokenInfo = googleRestClient.get()
+                    .uri("/tokeninfo?id_token={token}", googleIdToken)
+                    .retrieve()
+                    .body(GoogleTokenInfo.class);
+        } catch (RestClientResponseException e) {
+            log.warn("Google tokeninfo rejected the ID token: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new UnauthorizedException("Invalid or expired Google token");
+        } catch (RestClientException e) {
+            log.warn("Could not reach Google's tokeninfo endpoint: {}", e.getMessage());
+            throw new UnauthorizedException("Invalid or expired Google token");
+        }
+
+        if (tokenInfo == null || tokenInfo.email() == null || !"true".equals(tokenInfo.emailVerified())) {
+            throw new UnauthorizedException("Invalid or expired Google token");
+        }
+        if (googleClientId.isEmpty() || !googleClientId.equals(tokenInfo.aud())) {
+            throw new UnauthorizedException("Google token was not issued for this application");
+        }
+        return tokenInfo;
+    }
+
+    private record GoogleTokenInfo(String sub, String email, @JsonProperty("email_verified") String emailVerified,
+                                    String aud) {
     }
 
     @Override

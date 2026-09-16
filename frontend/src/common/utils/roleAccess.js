@@ -9,11 +9,11 @@ export const ROUTE_ROLES = {
   "/bookings/create": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST],
   "/bookings/detail": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST],
   "/staff": [USER_ROLE.ADMIN],
-  "/technician": [USER_ROLE.ADMIN, USER_ROLE.TECHNICIAN],
+  "/technician": [USER_ROLE.TECHNICIAN],
   "/technician/schedule": [USER_ROLE.ADMIN, USER_ROLE.TECHNICIAN],
   "/statistics": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST],
   "/statistics/rating": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST],
-  "/notifications": [USER_ROLE.ADMIN, USER_ROLE.RECEPTIONIST, USER_ROLE.TECHNICIAN],
+  "/notifications": [USER_ROLE.RECEPTIONIST, USER_ROLE.TECHNICIAN],
 };
 
 export function getDefaultRouteForRole(role) {

@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/logo.png";
 import { useAuth } from "../../../common/hooks/useAuth";
 import { getDefaultRouteForRole } from "../../../common/utils/roleAccess";
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [googleError, setGoogleError] = useState("");
+  const [googleReady, setGoogleReady] = useState(false);
   const navigate = useNavigate();
-  const { signIn, loading, error } = useAuth();
+  const { signIn, signInWithGoogle, loading, error } = useAuth();
+  const googleButtonRef = useRef(null);
+  const googleInitializedRef = useRef(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -18,8 +24,78 @@ export default function LoginPage() {
     }
   }
 
+  const handleCredentialResponse = useCallback(
+    async (response) => {
+      setGoogleError("");
+      const data = await signInWithGoogle(response.credential);
+      if (data) {
+        navigate(getDefaultRouteForRole(data.role));
+      } else {
+        setGoogleError("This Google account isn't linked to a Fixinh staff account.");
+      }
+    },
+    [signInWithGoogle, navigate]
+  );
+
+  // Renders Google's own button into a hidden node once GIS has loaded, so our custom-styled
+  // button (below) can forward its click there — that keeps the popup/One Tap credential flow
+  // running through GIS's own trusted button instead of a script-only call browsers may block.
+  // The script tag in index.html is async/defer, so it may not be ready the instant this effect
+  // first runs — poll briefly instead of giving up after a single check.
+  useEffect(() => {
+    // Guards against React StrictMode's dev-only double-invoke (mount, cleanup, mount again):
+    // without this, GIS's own "initialize() called multiple times" warning fires and it can
+    // start a second popup attempt with no direct click behind it, which browsers block.
+    if (!GOOGLE_CLIENT_ID || googleInitializedRef.current) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 50; // ~5s at 100ms apart
+
+    function trySetup() {
+      if (cancelled || googleInitializedRef.current) return;
+      if (!window.google?.accounts?.id || !googleButtonRef.current) {
+        attempts += 1;
+        if (attempts >= MAX_ATTEMPTS) {
+          setGoogleError("Couldn't load Google sign-in. Check your connection and reload the page.");
+          return;
+        }
+        setTimeout(trySetup, 100);
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+      });
+      googleInitializedRef.current = true;
+      setGoogleReady(true);
+    }
+
+    trySetup();
+    return () => {
+      cancelled = true;
+    };
+  }, [handleCredentialResponse]);
+
   function handleGoogleSignIn() {
-    navigate("/dashboard");
+    if (!GOOGLE_CLIENT_ID) {
+      setGoogleError("Google sign-in is not configured for this deployment.");
+      return;
+    }
+    const hiddenButton = googleButtonRef.current?.querySelector('div[role="button"]');
+    if (hiddenButton) {
+      hiddenButton.click();
+    } else if (!googleReady) {
+      setGoogleError("Google sign-in is still loading — please wait a moment and try again.");
+    } else {
+      setGoogleError("Google sign-in isn't available right now.");
+    }
   }
 
   return (
@@ -79,9 +155,9 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && (
+          {(error || googleError) && (
             <p className="mb-4 text-sm text-red-600" role="alert">
-              {error}
+              {error || googleError}
             </p>
           )}
 
@@ -98,6 +174,10 @@ export default function LoginPage() {
             <span className="text-xs text-slate-400">Or continue with</span>
             <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
           </div>
+
+          {/* Real Google button, rendered off-screen by GIS — our styled button below forwards
+              its click here so the visuals stay consistent with the rest of the form. */}
+          <div ref={googleButtonRef} className="hidden" />
 
           <button
             type="button"

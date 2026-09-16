@@ -16,11 +16,13 @@ export async function api(endpoint, options = {}) {
     ...options,
   });
 
-  // 401 means the token itself is missing/expired/invalid — clear it so the next
-  // reload sends the user back to the login page instead of retrying with it.
+  // 401 while a token was attached means THAT token is expired/invalid — clear it so the
+  // next reload sends the user back to the login page instead of retrying with it. A 401
+  // with no token attached is a failed login attempt itself (wrong password, unlinked
+  // Google account, ...) — fall through so the real backend message reaches the caller.
   // 403 means the token is valid but the role doesn't allow this action, which is
   // not a reason to log the user out — fall through and surface the real message.
-  if (response.status === 401) {
+  if (response.status === 401 && token) {
     localStorage.removeItem("token");
     throw new Error("Your session has expired. Please sign in again.");
   }

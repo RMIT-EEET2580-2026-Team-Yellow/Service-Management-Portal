@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import NavIcon from "../../../components/reusable/NavIcon";
 import { useBookings } from "../../../common/hooks/useBookings";
+import { useNotifications } from "../../../common/hooks/useNotifications";
 import { fetchAllTechnicians } from "../../technician/services/technicianApi";
 import { fetchRevenueStats } from "../../statistics/services/statisticsApi";
 import { fetchStaffById } from "../../staff/services/staffApi";
 import { STATUS_STYLES } from "../../booking/bookingHelpers";
+import { ROUTE_ROLES } from "../../../common/utils/roleAccess";
 
 /** Bookings not yet started — awaiting confirmation/scheduling (3.3.M2 status list). */
 const PENDING_STATUSES = ["CREATED", "CONFIRMED"];
@@ -31,6 +34,24 @@ function shortId(id, len = 8) {
   return id.length > len ? `${id.slice(0, len)}…` : id;
 }
 
+/** ADMIN → "Admin", RECEPTIONIST → "Receptionist", etc. */
+function formatRoleLabel(role) {
+  if (!role) return null;
+  return role.charAt(0) + role.slice(1).toLowerCase();
+}
+
+function formatTimestamp(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function exportBookingsToCsv(bookings) {
   const headers = ["Booking ID", "Customer ID", "Technician(s)", "Service Type", "Status", "Date"];
   const rows = bookings.map((b) => [
@@ -54,8 +75,12 @@ function exportBookingsToCsv(bookings) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
   const { active, past, listLoading, listError, loadActive, loadPast } = useBookings();
+  const canSeeNotifications = ROUTE_ROLES["/notifications"]?.includes(user?.role);
+  const { items: notifications, unreadCount, load: loadNotifications, read: readNotification } =
+    useNotifications();
 
   const [technicians, setTechnicians] = useState([]);
   const [techLoading, setTechLoading] = useState(true);
@@ -65,7 +90,9 @@ export default function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [notifOpen, setNotifOpen] = useState(false);
   const filterRef = useRef(null);
+  const notifRef = useRef(null);
 
   useEffect(() => {
     loadActive();
@@ -122,6 +149,9 @@ export default function DashboardPage() {
     function handleClickOutside(event) {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
         setFilterOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -196,7 +226,7 @@ export default function DashboardPage() {
       .slice(0, 8);
   }, [allBookings, statusFilter, searchText]);
 
-  const headerName = staffProfile?.fullName ?? user?.staffId ?? "—";
+  const headerName = staffProfile?.fullName ?? formatRoleLabel(user?.role) ?? "—";
   const headerRole = staffProfile?.role ?? user?.role ?? "";
 
   return (
@@ -216,12 +246,71 @@ export default function DashboardPage() {
             placeholder="Search bookings, techs..."
             className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
           />
-          <button
-            aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-          >
-            <NavIcon name="bell" />
-          </button>
+          {canSeeNotifications && (
+            <div ref={notifRef} className="relative">
+              <button
+                aria-label="Notifications"
+                onClick={() => {
+                  setNotifOpen((v) => !v);
+                  if (!notifOpen) loadNotifications();
+                }}
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <NavIcon name="bell" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-11 z-10 w-72 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                  <div className="flex items-center justify-between px-2.5 py-2">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">Notifications</p>
+                    <p className="text-xs text-slate-400">
+                      {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+                    </p>
+                  </div>
+                  <div className="my-1 h-px bg-slate-100 dark:bg-slate-700" />
+                  <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
+                    {notifications.length === 0 && (
+                      <p className="px-2.5 py-4 text-center text-xs text-slate-400">
+                        No notifications yet.
+                      </p>
+                    )}
+                    {notifications.slice(0, 5).map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => {
+                          if (!n.read) readNotification(n.id);
+                          setNotifOpen(false);
+                          navigate("/notifications");
+                        }}
+                        className={`flex flex-col rounded-lg px-2.5 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                          n.read ? "text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white"
+                        }`}
+                      >
+                        <span className="line-clamp-2">{n.message}</span>
+                        <span className="mt-0.5 text-[11px] text-slate-400">
+                          {formatTimestamp(n.createdAt)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="my-1 h-px bg-slate-100 dark:bg-slate-700" />
+                  <button
+                    onClick={() => {
+                      setNotifOpen(false);
+                      navigate("/notifications");
+                    }}
+                    className="flex w-full items-center justify-center rounded-lg px-2.5 py-2 text-center text-sm font-medium text-blue-600 hover:bg-slate-50 dark:text-blue-400 dark:hover:bg-slate-700"
+                  >
+                    View all
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
               {getInitials(headerName)}

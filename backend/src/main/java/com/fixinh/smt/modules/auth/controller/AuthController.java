@@ -1,6 +1,7 @@
 package com.fixinh.smt.modules.auth.controller;
 
 import com.fixinh.smt.common.web.ApiResponse;
+import com.fixinh.smt.modules.auth.dto.internal.GoogleLoginRequest;
 import com.fixinh.smt.modules.auth.dto.internal.LoginRequest;
 import com.fixinh.smt.modules.auth.dto.internal.LoginResponse;
 import com.fixinh.smt.modules.auth.dto.internal.ServiceTokenRequest;
@@ -33,8 +34,8 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    public ApiResponse<LoginResponse> loginWithGoogle(@RequestBody String googleIdToken) {
-        return ApiResponse.ok(authInternalService.loginWithGoogle(googleIdToken));
+    public ApiResponse<LoginResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+        return ApiResponse.ok(authInternalService.loginWithGoogle(request.idToken()));
     }
 
     /** Server-to-server auth for SBP's backend calls

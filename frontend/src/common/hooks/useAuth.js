@@ -27,6 +27,21 @@ export function useAuth() {
     [dispatch]
   );
 
+  const signInWithGoogle = useCallback(
+    async (googleIdToken) => {
+      dispatch(loginStart());
+      try {
+        const response = await authApi.loginWithGoogle(googleIdToken);
+        dispatch(loginSuccess(response.data)); // { token, staffId, role }
+        return response.data;
+      } catch (err) {
+        dispatch(loginFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
   const signOut = useCallback(async () => {
     try {
       await authApi.logout();
@@ -38,5 +53,5 @@ export function useAuth() {
     }
   }, [dispatch]);
 
-  return { user, token, isAuthenticated, loading, error, signIn, signOut };
+  return { user, token, isAuthenticated, loading, error, signIn, signInWithGoogle, signOut };
 }
