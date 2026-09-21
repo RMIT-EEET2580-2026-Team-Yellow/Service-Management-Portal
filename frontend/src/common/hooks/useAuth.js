@@ -1,8 +1,7 @@
 // src/common/hooks/useAuth.js
 //
 // Hook Tier for the Auth feature.
-// LoginPage (and NavBar, once role-based menus are built) call only
-// this hook — never the store or authApi directly.
+// LoginPage and Sidebar call only this hook — never the store or authApi directly.
 
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -19,10 +18,10 @@ export function useAuth() {
       try {
         const response = await authApi.login(email, password);
         dispatch(loginSuccess(response.data)); // { token, staffId, role }
-        return true;
+        return response.data;
       } catch (err) {
         dispatch(loginFailure(err.message));
-        return false;
+        return null;
       }
     },
     [dispatch]

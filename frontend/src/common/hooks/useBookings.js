@@ -30,6 +30,9 @@ import {
   searchBookingsStart,
   searchBookingsSuccess,
   searchBookingsFailure,
+  assignBookingStart,
+  assignBookingSuccess,
+  assignBookingFailure,
 } from '../../features/booking/bookingSlice';
 import * as bookingApi from '../../features/booking/services/bookingApi';
 
@@ -52,6 +55,8 @@ export function useBookings() {
     confirmError,
     cancelling,
     cancelError,
+    assigning,
+    assignError
   } = useSelector((state) => state.booking);
 
   const create = useCallback(
@@ -145,6 +150,22 @@ export function useBookings() {
     [dispatch]
   );
 
+  const assign = useCallback(
+    async (bookingId, technicianIds) => {
+      dispatch(assignBookingStart());
+
+      try {
+        const response = await bookingApi.assignTechnicians(bookingId, technicianIds);
+        dispatch(assignBookingSuccess(response.data));
+        return response.data;
+      } catch (err) {
+        dispatch(assignBookingFailure(err.message));
+        return null;
+      }
+    },
+    [dispatch]
+  );
+
   return {
     creating,
     createError,
@@ -169,5 +190,8 @@ export function useBookings() {
     cancelling,
     cancelError,
     cancel,
+    assigning,
+    assignError,
+    assign
   };
 }

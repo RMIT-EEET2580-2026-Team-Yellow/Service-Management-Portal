@@ -34,6 +34,8 @@ export function toDisplayBooking(booking) {
       booking.availableStart && booking.availableEnd
         ? `${formatTime(booking.availableStart)} – ${formatTime(booking.availableEnd)}`
         : null,
+    availableStartRaw: booking.availableStart,
+    availableEndRaw: booking.availableEnd,
     suggestedFee: booking.estimatedServiceFee,
     suggestedDuration: booking.estimatedDurationMinutes,
     serviceFee: booking.estimatedServiceFee,
@@ -44,21 +46,23 @@ export function toDisplayBooking(booking) {
     serviceFeeAmt: formatMoney(booking.serviceFee),
     materialCost: formatMoney(booking.materialCost),
     totalCost: formatMoney(booking.totalCost),
+    requiredTechnicianCount: booking.requiredTechnicianCount ?? 1,
+    activeAssignmentCount: booking.activeAssignmentCount ?? 0,
   };
 }
 
 export const STATUS_STYLES = {
-  Created: "bg-amber-100 text-amber-700",
-  Confirmed: "bg-blue-100 text-blue-700",
-  Scheduled: "bg-green-100 text-green-700",
-  Working: "bg-red-100 text-red-700",
-  Completed: "bg-indigo-100 text-indigo-700",
-  "Cancelled by Customer": "bg-red-100 text-red-700",
-  "Terminated by Customer": "bg-red-100 text-red-700",
-  "Aborted by Technician": "bg-purple-100 text-purple-700",
+  CREATED: "bg-amber-100 text-amber-700",
+  CONFIRMED: "bg-blue-100 text-blue-700",
+  SCHEDULED: "bg-green-100 text-green-700",
+  WORKING: "bg-red-100 text-red-700",
+  COMPLETED: "bg-indigo-100 text-indigo-700",
+  "CANCELLED BY CUSTOMER": "bg-red-100 text-red-700",
+  "TERMINATED BY CUSTOMER": "bg-red-100 text-red-700",
+  "ABORTED BY TECHNICIAN": "bg-purple-100 text-purple-700",
 };
 
-export const ACTIVE_STATUSES = ["Created", "Confirmed", "Scheduled", "Working"];
+export const ACTIVE_STATUSES = ["CREATED", "CONFIRMED", "SCHEDULED", "WORKING"];
 
 export function dateRangeToFrom(range) {
   const days = { last7: 7, last30: 30 }[range];

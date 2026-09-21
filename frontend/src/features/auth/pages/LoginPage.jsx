@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/logo.png";
 import { useAuth } from "../../../common/hooks/useAuth";
+import { getDefaultRouteForRole } from "../../../common/utils/roleAccess";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,9 +12,9 @@ export default function LoginPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const success = await signIn(email, password);
-    if (success) {
-      navigate("/dashboard");
+    const data = await signIn(email, password);
+    if (data) {
+      navigate(getDefaultRouteForRole(data.role));
     }
   }
 

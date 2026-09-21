@@ -14,10 +14,10 @@ public final class BookingMapper {
 
     /** No assigned technicians yet (e.g. right after creation) — use the overload once assignments exist. */
     public static BookingResponse toResponse(Booking booking) {
-        return toResponse(booking, Collections.emptyList());
+        return toResponse(booking, Collections.emptyList(), 0);
     }
 
-    public static BookingResponse toResponse(Booking booking, List<String> assignedTechnicianNames) {
+    public static BookingResponse toResponse(Booking booking, List<String> assignedTechnicianNames, int activeAssignmentCount) {
         Double totalCost = booking.getServiceFee() != null && booking.getMaterialCost() != null
                 ? booking.getServiceFee() + booking.getMaterialCost()
                 : null;
@@ -35,13 +35,17 @@ public final class BookingMapper {
                 booking.getEstimatedServiceFee(),
                 booking.getEstimatedDurationMinutes(),
                 assignedTechnicianNames,
+                booking.getRequiredTechnicianCount() != null ? booking.getRequiredTechnicianCount() : 1,
+                activeAssignmentCount,
                 booking.getServiceFee(),
                 booking.getMaterialCost(),
                 totalCost
         );
     }
 
-    /** Exposed to SBP per 4.S1 — only the fields SBP is allowed to see (A.2.3). */
+    /** Exposed to SBP (4.S1) and to the Technician module's "My Bookings" page (3.3.M6-M8), and
+     *  consumed internally by Statistics via BookingExternalService (3.4.S3/M3) for revenue-by-
+     *  service-type reporting — only the fields another module is allowed to see (A.2.3). */
     public static BookingExternalDto toExternalDto(Booking booking) {
         Double totalCost = booking.getServiceFee() != null && booking.getMaterialCost() != null
                 ? booking.getServiceFee() + booking.getMaterialCost()
@@ -50,8 +54,14 @@ public final class BookingMapper {
                 booking.getId(),
                 booking.getCustomerId(),
                 booking.getStatus(),
+                booking.getServiceType(),
+                booking.getIssueDescription(),
+                booking.getServiceAddress(),
                 booking.getPreferredDate(),
-                totalCost
+                booking.getAvailableStart(),
+                booking.getAvailableEnd(),
+                totalCost,
+                booking.getServiceFee()
         );
     }
 }

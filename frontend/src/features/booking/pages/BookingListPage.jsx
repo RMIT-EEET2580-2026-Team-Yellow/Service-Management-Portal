@@ -46,6 +46,9 @@ export default function BookingListPage() {
     cancel,
     cancelling,
     cancelError,
+    assign,
+    assigning,
+    assignError
   } = useBookings();
   const [tab, setTab] = useState("active");
   const [searchText, setSearchText] = useState("");
@@ -189,13 +192,14 @@ export default function BookingListPage() {
       />
 
       <AssignTechnicianModal
+        key={assigningBooking?.id}
         booking={assigningBooking}
+        assigning={assigning}
+        assignError={assignError}
         onCancel={() => setAssigningBooking(null)}
-        onAssign={() => {
-          // MOCK ONLY — real version calls PATCH /api/v1/bookings/{id}/assign,
-          // which creates TechnicianAssignment records (response starts as
-          // Pending until the Technician accepts/rejects — 3.3.M4).
-          setAssigningBooking(null);
+        onAssign={async (technicianIds) => {
+          const result = await assign(assigningBooking.id, technicianIds);
+          if (result) setAssigningBooking(null);
         }}
       />
 

@@ -5,6 +5,7 @@ import com.fixinh.smt.modules.technician.entity.TechnicianAssignment;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TechnicianAssignmentRepository extends MongoRepository<TechnicianAssignment, String> {
 
@@ -13,4 +14,6 @@ public interface TechnicianAssignmentRepository extends MongoRepository<Technici
     List<TechnicianAssignment> findByTechnicianId(String technicianId);
 
     List<TechnicianAssignment> findByBookingIdAndStatus(String bookingId, String status);
+
+    Optional<TechnicianAssignment> findByBookingIdAndTechnicianId(String bookingId, String technicianId);
 }

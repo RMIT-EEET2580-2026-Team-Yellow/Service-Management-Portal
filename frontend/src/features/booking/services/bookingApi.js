@@ -49,3 +49,10 @@ export function fetchFilteredBookings({ serviceType, from, sort } = {}) {
 export function searchBookings(query) {
   return api(`${API_ROUTES.BOOKINGS}/search?query=${encodeURIComponent(query)}`);
 }
+
+export function assignTechnicians(bookingId, technicianIds) {
+  return api(`${API_ROUTES.BOOKINGS}/${bookingId}/assign`, {
+    method: "PATCH",
+    body: JSON.stringify(technicianIds)
+  });
+}
